@@ -7,7 +7,6 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.os.Bundle;
-import android.text.TextUtils;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -15,13 +14,13 @@ import android.view.ViewGroup;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageView;
-import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -193,7 +192,7 @@ public class ProcessingActivity extends AppCompatActivity {
             urlPreview.setTextColor(Color.RED);
             findViewById(R.id.shareButton).setEnabled(false);
         } else {
-            urlPreview.setTextColor(getResources().getColor(android.R.color.primary_text_light));
+            urlPreview.setTextColor(ContextCompat.getColor(this, android.R.color.primary_text_light));
             findViewById(R.id.shareButton).setEnabled(true);
         }
     }
@@ -448,7 +447,7 @@ public class ProcessingActivity extends AppCompatActivity {
             if (!UrlProcessor.isValidPattern(transform.getPattern())) {
                 holder.pattern.setTextColor(Color.RED);
             } else {
-                holder.pattern.setTextColor(getResources().getColor(android.R.color.secondary_text_light));
+                holder.pattern.setTextColor(ContextCompat.getColor(ProcessingActivity.this, android.R.color.secondary_text_light));
             }
         }
 
@@ -498,9 +497,9 @@ public class ProcessingActivity extends AppCompatActivity {
 
             // Requirement 3.6 & 7.2: Visual distinction for whitelisted params
             if (isWhitelisted) {
-                holder.name.setTextColor(getResources().getColor(android.R.color.holo_green_dark));
+                holder.name.setTextColor(ContextCompat.getColor(ProcessingActivity.this, android.R.color.holo_green_dark));
             } else {
-                holder.name.setTextColor(getResources().getColor(android.R.color.primary_text_light));
+                holder.name.setTextColor(ContextCompat.getColor(ProcessingActivity.this, android.R.color.primary_text_light));
             }
 
             // Requirement 3.6: Checkbox for keep/remove
