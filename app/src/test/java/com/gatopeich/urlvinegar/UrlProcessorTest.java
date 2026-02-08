@@ -47,7 +47,10 @@ public class UrlProcessorTest {
     @Test
     public void testApplyTransforms_removeUtmParams() {
         List<Transform> transforms = new ArrayList<>();
+        // UTM removal transform
         transforms.add(new Transform("Remove UTM", "[?&](utm_[a-z_]+)=[^&]*", "", true));
+        // Cleanup: convert leading & to ? for first query parameter (handles path ending before & becomes query start)
+        transforms.add(new Transform("Fix leading ampersand", "^([^?&#]+)&", "$1?", true));
         
         String url = "https://example.com/page?utm_source=test&id=123&utm_medium=email";
         UrlProcessor.ProcessResult result = UrlProcessor.applyTransforms(url, transforms, null);
