@@ -53,8 +53,3 @@ local.properties
 
 # Gradle cache
 .gradle/
-
-# Gradle wrapper (can be regenerated)
-gradle/wrapper/gradle-wrapper.jar
-gradlew
-gradlew.bat
