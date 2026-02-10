@@ -14,6 +14,7 @@ import android.view.ViewGroup;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageView;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -45,6 +46,7 @@ public class ProcessingActivity extends AppCompatActivity {
 
     private ConfigRepository configRepository;
     private List<Transform> transforms;
+    private List<Transform> matchingTransforms; // Only transforms that match the URL
     private List<AllowedParameter> allowedParameters;
     private Set<String> allowedParamNames;
     private Set<Integer> disabledForThisUrl;
@@ -56,6 +58,8 @@ public class ProcessingActivity extends AppCompatActivity {
     private TextView urlPreview;
     private RecyclerView transformsRecyclerView;
     private RecyclerView paramsRecyclerView;
+    private LinearLayout transformsSection;
+    private LinearLayout paramsSection;
     private TransformAdapter transformAdapter;
     private QueryParamAdapter paramAdapter;
 
@@ -66,6 +70,7 @@ public class ProcessingActivity extends AppCompatActivity {
 
         configRepository = ConfigRepository.getInstance(this);
         transforms = configRepository.loadTransforms();
+        matchingTransforms = new ArrayList<>();
         allowedParameters = configRepository.loadAllowedParameters();
         disabledForThisUrl = new HashSet<>();
         
@@ -118,6 +123,8 @@ public class ProcessingActivity extends AppCompatActivity {
         urlPreview = findViewById(R.id.urlPreview);
         transformsRecyclerView = findViewById(R.id.transformsRecyclerView);
         paramsRecyclerView = findViewById(R.id.paramsRecyclerView);
+        transformsSection = findViewById(R.id.transformsSection);
+        paramsSection = findViewById(R.id.paramsSection);
 
         // Setup transforms RecyclerView with drag-and-drop
         transformAdapter = new TransformAdapter();
@@ -133,10 +140,11 @@ public class ProcessingActivity extends AppCompatActivity {
                     @NonNull RecyclerView.ViewHolder target) {
                 int from = viewHolder.getAdapterPosition();
                 int to = target.getAdapterPosition();
-                Collections.swap(transforms, from, to);
+                // Swap in matching transforms list
+                Collections.swap(matchingTransforms, from, to);
                 transformAdapter.notifyItemMoved(from, to);
-                // Requirement 3.3: Persist new order
-                configRepository.saveTransforms(transforms);
+                // Also update order in main transforms list and persist
+                reorderTransformsInConfig();
                 processUrl();
                 return true;
             }
@@ -160,10 +168,49 @@ public class ProcessingActivity extends AppCompatActivity {
         findViewById(R.id.cancelButton).setOnClickListener(v -> finish());
         findViewById(R.id.settingsButton).setOnClickListener(v -> openSettings());
         findViewById(R.id.addTransformButton).setOnClickListener(v -> showAddTransformDialog());
+        findViewById(R.id.addParamButton).setOnClickListener(v -> showAddParamToWhitelistDialog());
+    }
+
+    /**
+     * Reorder transforms in the main config list based on current matching transforms order.
+     */
+    private void reorderTransformsInConfig() {
+        // For simplicity, we update the enabled transforms order
+        // by rebuilding the transforms list with matching transforms first
+        List<Transform> newOrder = new ArrayList<>();
+        Set<Integer> addedIndices = new HashSet<>();
+        
+        // Add matching transforms first in their new order
+        for (Transform t : matchingTransforms) {
+            int idx = transforms.indexOf(t);
+            if (idx >= 0 && !addedIndices.contains(idx)) {
+                newOrder.add(t);
+                addedIndices.add(idx);
+            }
+        }
+        
+        // Add remaining non-matching transforms
+        for (int i = 0; i < transforms.size(); i++) {
+            if (!addedIndices.contains(i)) {
+                newOrder.add(transforms.get(i));
+            }
+        }
+        
+        // Replace transforms list with new order
+        transforms = newOrder;
+        configRepository.saveTransforms(transforms);
     }
 
     private void processUrl() {
-        // Apply transforms
+        // Build list of matching transforms
+        matchingTransforms.clear();
+        for (Transform transform : transforms) {
+            if (UrlProcessor.transformMatches(originalUrl, transform)) {
+                matchingTransforms.add(transform);
+            }
+        }
+
+        // Apply transforms (use all transforms, not just matching - for full processing)
         UrlProcessor.ProcessResult result = UrlProcessor.applyTransforms(
             originalUrl, transforms, disabledForThisUrl);
         
@@ -177,8 +224,28 @@ public class ProcessingActivity extends AppCompatActivity {
         
         // Update UI
         updatePreview(result);
+        updateSectionVisibility();
         transformAdapter.notifyDataSetChanged();
         paramAdapter.notifyDataSetChanged();
+    }
+
+    /**
+     * Show/hide sections based on content availability.
+     */
+    private void updateSectionVisibility() {
+        // Show transforms section only if there are matching transforms
+        if (matchingTransforms.isEmpty()) {
+            transformsSection.setVisibility(View.GONE);
+        } else {
+            transformsSection.setVisibility(View.VISIBLE);
+        }
+
+        // Show params section only if there are query params
+        if (queryParams == null || queryParams.isEmpty()) {
+            paramsSection.setVisibility(View.GONE);
+        } else {
+            paramsSection.setVisibility(View.VISIBLE);
+        }
     }
 
     /**
@@ -275,9 +342,41 @@ public class ProcessingActivity extends AppCompatActivity {
     }
 
     /**
+     * Show dialog to add a parameter to whitelist on the fly.
+     */
+    private void showAddParamToWhitelistDialog() {
+        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_param, null);
+        EditText nameEdit = dialogView.findViewById(R.id.paramName);
+        EditText descEdit = dialogView.findViewById(R.id.paramDescription);
+
+        new AlertDialog.Builder(this)
+            .setTitle(R.string.add_parameter)
+            .setView(dialogView)
+            .setPositiveButton(R.string.add, (dialog, which) -> {
+                String name = nameEdit.getText().toString().trim();
+                String description = descEdit.getText().toString().trim();
+
+                if (name.isEmpty()) {
+                    Toast.makeText(this, R.string.name_required, Toast.LENGTH_SHORT).show();
+                    return;
+                }
+
+                allowedParameters.add(new AllowedParameter(name, description));
+                allowedParamNames.add(name);
+                configRepository.saveAllowedParameters(allowedParameters);
+                processUrl();
+            })
+            .setNegativeButton(R.string.cancel, null)
+            .show();
+    }
+
+    /**
      * Requirement 3.4: Transform Toggling
      */
     private void showDisableTransformDialog(int position, Transform transform) {
+        // Find the actual position in the main transforms list
+        int mainPosition = transforms.indexOf(transform);
+        
         new AlertDialog.Builder(this)
             .setTitle(R.string.disable_transform)
             .setItems(new CharSequence[]{
@@ -287,14 +386,14 @@ public class ProcessingActivity extends AppCompatActivity {
             }, (dialog, which) -> {
                 switch (which) {
                     case 0: // This URL only
-                        disabledForThisUrl.add(position);
+                        disabledForThisUrl.add(mainPosition);
                         break;
                     case 1: // Disable in config
                         transform.setEnabled(false);
                         configRepository.saveTransforms(transforms);
                         break;
                     case 2: // Delete from config
-                        transforms.remove(position);
+                        transforms.remove(transform);
                         configRepository.saveTransforms(transforms);
                         break;
                 }
@@ -375,7 +474,7 @@ public class ProcessingActivity extends AppCompatActivity {
 
     /**
      * Adapter for transform list.
-     * Requirement 3.2: Transform List
+     * Requirement 3.2: Transform List - Only shows matching transforms
      */
     private class TransformAdapter extends RecyclerView.Adapter<TransformAdapter.ViewHolder> {
         private ItemTouchHelper touchHelper;
@@ -394,20 +493,16 @@ public class ProcessingActivity extends AppCompatActivity {
 
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-            Transform transform = transforms.get(position);
-            boolean matches = UrlProcessor.transformMatches(originalUrl, transform);
-            boolean disabled = disabledForThisUrl.contains(position);
+            Transform transform = matchingTransforms.get(position);
+            int mainPosition = transforms.indexOf(transform);
+            boolean disabled = disabledForThisUrl.contains(mainPosition);
 
             // Requirement 3.2: Show name and pattern
             holder.name.setText(transform.getName());
             holder.pattern.setText(transform.getPattern());
 
-            // Requirement 7.2: Visual feedback - matching vs non-matching
-            if (!matches) {
-                holder.itemView.setAlpha(0.5f);
-            } else {
-                holder.itemView.setAlpha(1.0f);
-            }
+            // All displayed transforms match, so always full opacity
+            holder.itemView.setAlpha(1.0f);
 
             // Requirement 7.2: Disabled transforms with strikethrough
             if (!transform.isEnabled() || disabled) {
@@ -426,7 +521,7 @@ public class ProcessingActivity extends AppCompatActivity {
                     holder.checkbox.setChecked(true); // Revert until user decides
                 } else if (isChecked) {
                     // Requirement 3.4: Enable without prompting
-                    disabledForThisUrl.remove(position);
+                    disabledForThisUrl.remove(mainPosition);
                     if (!transform.isEnabled()) {
                         transform.setEnabled(true);
                         configRepository.saveTransforms(transforms);
@@ -453,7 +548,7 @@ public class ProcessingActivity extends AppCompatActivity {
 
         @Override
         public int getItemCount() {
-            return transforms.size();
+            return matchingTransforms.size();
         }
 
         class ViewHolder extends RecyclerView.ViewHolder {

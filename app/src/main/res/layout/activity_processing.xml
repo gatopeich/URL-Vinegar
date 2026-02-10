@@ -17,50 +17,105 @@
         android:textSize="14sp"
         android:fontFamily="monospace" />
 
-    <!-- Transforms Section -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="16dp"
-        android:text="@string/transforms"
-        android:textStyle="bold" />
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/transformsRecyclerView"
+    <!-- Big Share Button -->
+    <Button
+        android:id="@+id/shareButton"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:maxHeight="150dp"
-        android:nestedScrollingEnabled="false" />
+        android:layout_marginTop="12dp"
+        android:text="@string/share"
+        android:textSize="18sp"
+        android:padding="12dp" />
 
-    <Button
-        android:id="@+id/addTransformButton"
-        android:layout_width="wrap_content"
+    <!-- Transforms Section -->
+    <LinearLayout
+        android:id="@+id/transformsSection"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="@string/add_transform"
-        style="?android:attr/buttonBarButtonStyle" />
+        android:orientation="vertical"
+        android:layout_marginTop="16dp"
+        android:visibility="gone">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/transforms"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/addTransformButton"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/ic_add"
+                android:contentDescription="@string/add_transform"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+
+        </LinearLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/transformsRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxHeight="150dp"
+            android:nestedScrollingEnabled="false" />
+
+    </LinearLayout>
 
     <!-- Query Parameters Section -->
-    <TextView
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="8dp"
-        android:text="@string/query_parameters"
-        android:textStyle="bold" />
-
-    <androidx.recyclerview.widget.RecyclerView
-        android:id="@+id/paramsRecyclerView"
+    <LinearLayout
+        android:id="@+id/paramsSection"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:maxHeight="150dp"
-        android:nestedScrollingEnabled="false" />
+        android:orientation="vertical"
+        android:layout_marginTop="8dp"
+        android:visibility="gone">
 
-    <!-- Action Buttons -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical">
+
+            <TextView
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:text="@string/query_parameters"
+                android:textStyle="bold" />
+
+            <ImageButton
+                android:id="@+id/addParamButton"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/ic_add"
+                android:contentDescription="@string/add_parameter"
+                android:background="?attr/selectableItemBackgroundBorderless" />
+
+        </LinearLayout>
+
+        <androidx.recyclerview.widget.RecyclerView
+            android:id="@+id/paramsRecyclerView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:maxHeight="150dp"
+            android:nestedScrollingEnabled="false" />
+
+    </LinearLayout>
+
+    <!-- Secondary Action Buttons -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:orientation="horizontal"
-        android:gravity="end">
+        android:gravity="center_vertical">
 
         <ImageButton
             android:id="@+id/settingsButton"
@@ -87,13 +142,6 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/copy"
-            style="?android:attr/buttonBarButtonStyle" />
-
-        <Button
-            android:id="@+id/shareButton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="@string/share"
             style="?android:attr/buttonBarButtonStyle" />
 
     </LinearLayout>
