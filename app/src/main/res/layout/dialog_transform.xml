@@ -48,4 +48,25 @@
 
     </com.google.android.material.textfield.TextInputLayout>
 
+    <!-- Preview section -->
+    <TextView
+        android:id="@+id/previewLabel"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="@string/preview"
+        android:textStyle="bold"
+        android:visibility="gone" />
+
+    <TextView
+        android:id="@+id/previewResult"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="4dp"
+        android:padding="8dp"
+        android:background="#F5F5F5"
+        android:fontFamily="monospace"
+        android:textSize="12sp"
+        android:visibility="gone" />
+
 </LinearLayout>

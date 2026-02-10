@@ -123,6 +123,7 @@
             android:layout_height="48dp"
             android:src="@drawable/ic_settings"
             android:contentDescription="@string/settings"
+            android:tooltipText="@string/settings"
             android:background="?attr/selectableItemBackgroundBorderless" />
 
         <View

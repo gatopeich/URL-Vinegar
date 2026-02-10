@@ -7,6 +7,8 @@ import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.os.Bundle;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
@@ -37,6 +39,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 /**
  * Processing Activity - Handles URL cleaning dialog.
@@ -295,12 +300,34 @@ public class ProcessingActivity extends AppCompatActivity {
 
     /**
      * Requirement 3.5: Adding Transforms
+     * Shows a dialog to add a new transform with live preview of the result.
      */
     private void showAddTransformDialog() {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_transform, null);
         EditText nameEdit = dialogView.findViewById(R.id.transformName);
         EditText patternEdit = dialogView.findViewById(R.id.transformPattern);
         EditText replacementEdit = dialogView.findViewById(R.id.transformReplacement);
+        TextView previewLabel = dialogView.findViewById(R.id.previewLabel);
+        TextView previewResult = dialogView.findViewById(R.id.previewResult);
+
+        // TextWatcher to update preview when pattern or replacement changes
+        TextWatcher previewWatcher = new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {}
+
+            @Override
+            public void afterTextChanged(Editable s) {
+                updateTransformPreview(patternEdit.getText().toString(),
+                        replacementEdit.getText().toString(),
+                        previewLabel, previewResult);
+            }
+        };
+
+        patternEdit.addTextChangedListener(previewWatcher);
+        replacementEdit.addTextChangedListener(previewWatcher);
 
         new AlertDialog.Builder(this)
             .setTitle(R.string.add_transform)
@@ -339,6 +366,40 @@ public class ProcessingActivity extends AppCompatActivity {
             })
             .setNegativeButton(R.string.cancel, null)
             .show();
+    }
+
+    /**
+     * Update the preview in the add transform dialog.
+     */
+    private void updateTransformPreview(String pattern, String replacement, 
+            TextView previewLabel, TextView previewResult) {
+        if (pattern.isEmpty()) {
+            previewLabel.setVisibility(View.GONE);
+            previewResult.setVisibility(View.GONE);
+            return;
+        }
+
+        try {
+            Pattern regex = Pattern.compile(pattern);
+            Matcher matcher = regex.matcher(originalUrl);
+            if (matcher.find()) {
+                String result = matcher.replaceAll(replacement);
+                previewLabel.setVisibility(View.VISIBLE);
+                previewResult.setVisibility(View.VISIBLE);
+                previewResult.setText(result);
+                previewResult.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_dark));
+            } else {
+                previewLabel.setVisibility(View.VISIBLE);
+                previewResult.setVisibility(View.VISIBLE);
+                previewResult.setText(R.string.no_match);
+                previewResult.setTextColor(ContextCompat.getColor(this, android.R.color.darker_gray));
+            }
+        } catch (PatternSyntaxException e) {
+            previewLabel.setVisibility(View.VISIBLE);
+            previewResult.setVisibility(View.VISIBLE);
+            previewResult.setText(R.string.invalid_regex);
+            previewResult.setTextColor(Color.RED);
+        }
     }
 
     /**

@@ -21,6 +21,8 @@ android {
             minifyEnabled true
             shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            // Use debug signing config if available, otherwise leave unsigned
+            signingConfig signingConfigs.debug
         }
     }
     compileOptions {

@@ -96,6 +96,22 @@ public class ConfigRepository {
     private List<Transform> getDefaultTransforms() {
         List<Transform> transforms = new ArrayList<>();
         
+        // YouTube URL shortener - convert to youtu.be format (preserves timestamp with &t=)
+        transforms.add(new Transform(
+            "Shorten YouTube URL",
+            "https?://(?:www\\.)?youtube\\.com/watch\\?v=([a-zA-Z0-9_-]+)(?:&t=([0-9]+)s?)?.*",
+            "https://youtu.be/$1?t=$2",
+            true
+        ));
+        
+        // Clean up youtu.be URLs with empty timestamp
+        transforms.add(new Transform(
+            "Clean YouTube timestamp",
+            "(https://youtu\\.be/[a-zA-Z0-9_-]+)\\?t=$",
+            "$1",
+            true
+        ));
+        
         // UTM parameters removal
         transforms.add(new Transform(
             "Remove UTM parameters",

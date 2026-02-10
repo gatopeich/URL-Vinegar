@@ -12,6 +12,7 @@
     <string name="edit">Edit</string>
     <string name="delete">Delete</string>
     <string name="settings">Settings</string>
+    <string name="preview">Preview:</string>
     
     <!-- Processing Dialog -->
     <string name="transforms">Transforms</string>
@@ -29,6 +30,7 @@
     <string name="save_transform">Save Transform?</string>
     <string name="save_transform_message">Do you want to save this transform to your configuration?</string>
     <string name="this_time_only">This time only</string>
+    <string name="no_match">No match on current URL</string>
     
     <!-- Disable Transform Dialog -->
     <string name="disable_transform">Disable Transform</string>
