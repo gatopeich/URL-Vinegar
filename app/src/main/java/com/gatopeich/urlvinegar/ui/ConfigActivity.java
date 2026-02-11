@@ -20,7 +20,6 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.gatopeich.urlvinegar.R;
-import com.gatopeich.urlvinegar.data.AllowedParameter;
 import com.gatopeich.urlvinegar.data.ConfigRepository;
 import com.gatopeich.urlvinegar.data.Transform;
 import com.gatopeich.urlvinegar.util.UrlProcessor;
@@ -29,19 +28,16 @@ import java.util.Collections;
 import java.util.List;
 
 /**
- * Configuration Activity - Manage transforms and allowed parameters.
+ * Configuration Activity - Manage transforms.
  * Implements requirements from Section 5: Configuration
  */
 public class ConfigActivity extends AppCompatActivity {
 
     private ConfigRepository configRepository;
     private List<Transform> transforms;
-    private List<AllowedParameter> allowedParameters;
 
     private RecyclerView transformsRecyclerView;
-    private RecyclerView paramsRecyclerView;
     private TransformConfigAdapter transformAdapter;
-    private AllowedParamAdapter paramAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -50,14 +46,12 @@ public class ConfigActivity extends AppCompatActivity {
 
         configRepository = ConfigRepository.getInstance(this);
         transforms = configRepository.loadTransforms();
-        allowedParameters = configRepository.loadAllowedParameters();
 
         setupViews();
     }
 
     private void setupViews() {
         transformsRecyclerView = findViewById(R.id.transformsRecyclerView);
-        paramsRecyclerView = findViewById(R.id.paramsRecyclerView);
 
         // Setup transforms RecyclerView with drag-and-drop
         transformAdapter = new TransformConfigAdapter();
@@ -87,14 +81,8 @@ public class ConfigActivity extends AppCompatActivity {
         touchHelper.attachToRecyclerView(transformsRecyclerView);
         transformAdapter.setTouchHelper(touchHelper);
 
-        // Setup allowed params RecyclerView
-        paramAdapter = new AllowedParamAdapter();
-        paramsRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-        paramsRecyclerView.setAdapter(paramAdapter);
-
-        // Add buttons
+        // Add button
         findViewById(R.id.addTransformButton).setOnClickListener(v -> showAddTransformDialog());
-        findViewById(R.id.addParamButton).setOnClickListener(v -> showAddParamDialog());
     }
 
     /**
@@ -192,84 +180,6 @@ public class ConfigActivity extends AppCompatActivity {
     }
 
     /**
-     * Requirement 5.3: Add new allowed parameters
-     */
-    private void showAddParamDialog() {
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_param, null);
-        EditText nameEdit = dialogView.findViewById(R.id.paramName);
-        EditText descEdit = dialogView.findViewById(R.id.paramDescription);
-
-        new AlertDialog.Builder(this)
-            .setTitle(R.string.add_parameter)
-            .setView(dialogView)
-            .setPositiveButton(R.string.add, (dialog, which) -> {
-                String name = nameEdit.getText().toString().trim();
-                String description = descEdit.getText().toString().trim();
-
-                if (name.isEmpty()) {
-                    Toast.makeText(this, R.string.name_required, Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                allowedParameters.add(new AllowedParameter(name, description));
-                configRepository.saveAllowedParameters(allowedParameters);
-                paramAdapter.notifyItemInserted(allowedParameters.size() - 1);
-            })
-            .setNegativeButton(R.string.cancel, null)
-            .show();
-    }
-
-    /**
-     * Requirement 5.3: Edit existing allowed parameters
-     */
-    private void showEditParamDialog(int position) {
-        AllowedParameter param = allowedParameters.get(position);
-
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_param, null);
-        EditText nameEdit = dialogView.findViewById(R.id.paramName);
-        EditText descEdit = dialogView.findViewById(R.id.paramDescription);
-
-        nameEdit.setText(param.getName());
-        descEdit.setText(param.getDescription());
-
-        new AlertDialog.Builder(this)
-            .setTitle(R.string.edit_parameter)
-            .setView(dialogView)
-            .setPositiveButton(R.string.save, (dialog, which) -> {
-                String name = nameEdit.getText().toString().trim();
-                String description = descEdit.getText().toString().trim();
-
-                if (name.isEmpty()) {
-                    Toast.makeText(this, R.string.name_required, Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                param.setName(name);
-                param.setDescription(description);
-                configRepository.saveAllowedParameters(allowedParameters);
-                paramAdapter.notifyItemChanged(position);
-            })
-            .setNegativeButton(R.string.cancel, null)
-            .show();
-    }
-
-    /**
-     * Requirement 5.3: Delete existing allowed parameters
-     */
-    private void showDeleteParamDialog(int position) {
-        new AlertDialog.Builder(this)
-            .setTitle(R.string.delete_parameter)
-            .setMessage(R.string.delete_param_confirm)
-            .setPositiveButton(R.string.delete, (dialog, which) -> {
-                allowedParameters.remove(position);
-                configRepository.saveAllowedParameters(allowedParameters);
-                paramAdapter.notifyItemRemoved(position);
-            })
-            .setNegativeButton(R.string.cancel, null)
-            .show();
-    }
-
-    /**
      * Adapter for transform configuration list.
      */
     private class TransformConfigAdapter extends RecyclerView.Adapter<TransformConfigAdapter.ViewHolder> {
@@ -338,56 +248,6 @@ public class ConfigActivity extends AppCompatActivity {
                 editButton = itemView.findViewById(R.id.editButton);
                 deleteButton = itemView.findViewById(R.id.deleteButton);
                 dragHandle = itemView.findViewById(R.id.dragHandle);
-            }
-        }
-    }
-
-    /**
-     * Adapter for allowed parameters list.
-     */
-    private class AllowedParamAdapter extends RecyclerView.Adapter<AllowedParamAdapter.ViewHolder> {
-
-        @NonNull
-        @Override
-        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_allowed_param, parent, false);
-            return new ViewHolder(view);
-        }
-
-        @Override
-        public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-            AllowedParameter param = allowedParameters.get(position);
-
-            holder.name.setText(param.getName());
-            holder.description.setText(param.getDescription());
-            holder.description.setVisibility(
-                param.getDescription().isEmpty() ? View.GONE : View.VISIBLE);
-
-            // Edit button
-            holder.editButton.setOnClickListener(v -> showEditParamDialog(position));
-
-            // Delete button
-            holder.deleteButton.setOnClickListener(v -> showDeleteParamDialog(position));
-        }
-
-        @Override
-        public int getItemCount() {
-            return allowedParameters.size();
-        }
-
-        class ViewHolder extends RecyclerView.ViewHolder {
-            TextView name;
-            TextView description;
-            ImageButton editButton;
-            ImageButton deleteButton;
-
-            ViewHolder(View itemView) {
-                super(itemView);
-                name = itemView.findViewById(R.id.paramName);
-                description = itemView.findViewById(R.id.paramDescription);
-                editButton = itemView.findViewById(R.id.editButton);
-                deleteButton = itemView.findViewById(R.id.deleteButton);
             }
         }
     }

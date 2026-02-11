@@ -17,7 +17,6 @@ import java.util.List;
 public class ConfigRepository {
     private static final String PREFS_NAME = "url_vinegar_config";
     private static final String KEY_TRANSFORMS = "transforms";
-    private static final String KEY_ALLOWED_PARAMS = "allowed_params";
 
     private final SharedPreferences prefs;
     private static ConfigRepository instance;
@@ -62,35 +61,7 @@ public class ConfigRepository {
     }
 
     /**
-     * Load allowed parameters from SharedPreferences.
-     * Returns default allowed parameters if none are stored.
-     */
-    public List<AllowedParameter> loadAllowedParameters() {
-        String json = prefs.getString(KEY_ALLOWED_PARAMS, null);
-        if (json == null) {
-            return getDefaultAllowedParameters();
-        }
-        try {
-            return parseAllowedParameters(json);
-        } catch (JSONException e) {
-            return getDefaultAllowedParameters();
-        }
-    }
-
-    /**
-     * Save allowed parameters to SharedPreferences.
-     */
-    public void saveAllowedParameters(List<AllowedParameter> params) {
-        try {
-            String json = serializeAllowedParameters(params);
-            prefs.edit().putString(KEY_ALLOWED_PARAMS, json).apply();
-        } catch (JSONException e) {
-            // Ignore save errors
-        }
-    }
-
-    /**
-     * Requirement 5.5: Default Configuration
+     * Requirement 5.3: Default Configuration
      * Default transforms for common tracking parameters.
      */
     private List<Transform> getDefaultTransforms() {
@@ -171,34 +142,6 @@ public class ConfigRepository {
         return transforms;
     }
 
-    /**
-     * Requirement 5.5: Default Configuration
-     * Default allowed parameters for common use cases.
-     */
-    private List<AllowedParameter> getDefaultAllowedParameters() {
-        List<AllowedParameter> params = new ArrayList<>();
-        
-        // Search queries
-        params.add(new AllowedParameter("q", "Search query"));
-        params.add(new AllowedParameter("query", "Search query"));
-        params.add(new AllowedParameter("search", "Search term"));
-        
-        // Item identifiers
-        params.add(new AllowedParameter("id", "Item identifier"));
-        params.add(new AllowedParameter("v", "Video ID (YouTube)"));
-        params.add(new AllowedParameter("t", "Timestamp"));
-        
-        // Pagination
-        params.add(new AllowedParameter("page", "Page number"));
-        params.add(new AllowedParameter("p", "Page"));
-        
-        // Common functional parameters
-        params.add(new AllowedParameter("lang", "Language"));
-        params.add(new AllowedParameter("locale", "Locale"));
-        
-        return params;
-    }
-
     private String serializeTransforms(List<Transform> transforms) throws JSONException {
         JSONArray array = new JSONArray();
         for (Transform t : transforms) {
@@ -225,29 +168,5 @@ public class ConfigRepository {
             ));
         }
         return transforms;
-    }
-
-    private String serializeAllowedParameters(List<AllowedParameter> params) throws JSONException {
-        JSONArray array = new JSONArray();
-        for (AllowedParameter p : params) {
-            JSONObject obj = new JSONObject();
-            obj.put("name", p.getName());
-            obj.put("description", p.getDescription());
-            array.put(obj);
-        }
-        return array.toString();
-    }
-
-    private List<AllowedParameter> parseAllowedParameters(String json) throws JSONException {
-        List<AllowedParameter> params = new ArrayList<>();
-        JSONArray array = new JSONArray(json);
-        for (int i = 0; i < array.length(); i++) {
-            JSONObject obj = array.getJSONObject(i);
-            params.add(new AllowedParameter(
-                obj.getString("name"),
-                obj.optString("description", "")
-            ));
-        }
-        return params;
     }
 }
