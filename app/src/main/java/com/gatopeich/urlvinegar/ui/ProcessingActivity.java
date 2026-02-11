@@ -6,6 +6,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.net.Uri;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -15,6 +16,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.CheckBox;
 import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
@@ -29,7 +31,6 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.gatopeich.urlvinegar.R;
-import com.gatopeich.urlvinegar.data.AllowedParameter;
 import com.gatopeich.urlvinegar.data.ConfigRepository;
 import com.gatopeich.urlvinegar.data.Transform;
 import com.gatopeich.urlvinegar.util.UrlProcessor;
@@ -52,13 +53,13 @@ public class ProcessingActivity extends AppCompatActivity {
     private ConfigRepository configRepository;
     private List<Transform> transforms;
     private List<Transform> matchingTransforms; // Only transforms that match the URL
-    private List<AllowedParameter> allowedParameters;
-    private Set<String> allowedParamNames;
-    private Set<Integer> disabledForThisUrl;
+    private Set<Integer> disabledForThisUrl; // Track disabled transforms for this URL
+    private Set<Integer> enabledForThisUrl;  // Track temporarily enabled transforms
     private List<UrlProcessor.QueryParam> queryParams;
 
     private String originalUrl;
     private String currentUrl;
+    private String urlHost;
 
     private TextView urlPreview;
     private RecyclerView transformsRecyclerView;
@@ -76,14 +77,8 @@ public class ProcessingActivity extends AppCompatActivity {
         configRepository = ConfigRepository.getInstance(this);
         transforms = configRepository.loadTransforms();
         matchingTransforms = new ArrayList<>();
-        allowedParameters = configRepository.loadAllowedParameters();
         disabledForThisUrl = new HashSet<>();
-        
-        // Build set of allowed parameter names
-        allowedParamNames = new HashSet<>();
-        for (AllowedParameter param : allowedParameters) {
-            allowedParamNames.add(param.getName());
-        }
+        enabledForThisUrl = new HashSet<>();
 
         // Extract URL from intent
         originalUrl = extractUrlFromIntent(getIntent());
@@ -92,6 +87,17 @@ public class ProcessingActivity extends AppCompatActivity {
             startActivity(new Intent(this, ConfigActivity.class));
             finish();
             return;
+        }
+        
+        // Extract host for display in default transform names
+        try {
+            Uri uri = Uri.parse(originalUrl);
+            urlHost = uri.getHost();
+            if (urlHost != null && urlHost.startsWith("www.")) {
+                urlHost = urlHost.substring(4);
+            }
+        } catch (Exception e) {
+            urlHost = "URL";
         }
 
         setupViews();
@@ -173,7 +179,6 @@ public class ProcessingActivity extends AppCompatActivity {
         findViewById(R.id.cancelButton).setOnClickListener(v -> finish());
         findViewById(R.id.settingsButton).setOnClickListener(v -> openSettings());
         findViewById(R.id.addTransformButton).setOnClickListener(v -> showAddTransformDialog());
-        findViewById(R.id.addParamButton).setOnClickListener(v -> showAddParamToWhitelistDialog());
     }
 
     /**
@@ -215,14 +220,24 @@ public class ProcessingActivity extends AppCompatActivity {
             }
         }
 
-        // Apply transforms (use all transforms, not just matching - for full processing)
+        // Build set of disabled indices for processing
+        Set<Integer> processDisabled = new HashSet<>();
+        for (int i = 0; i < transforms.size(); i++) {
+            // Disabled if: in disabledForThisUrl AND not in enabledForThisUrl
+            if (disabledForThisUrl.contains(i) && !enabledForThisUrl.contains(i)) {
+                processDisabled.add(i);
+            }
+        }
+
+        // Apply transforms
         UrlProcessor.ProcessResult result = UrlProcessor.applyTransforms(
-            originalUrl, transforms, disabledForThisUrl);
+            originalUrl, transforms, processDisabled);
         
         currentUrl = result.url;
         
-        // Parse query parameters
-        queryParams = UrlProcessor.parseQueryParams(currentUrl, allowedParamNames);
+        // Parse query parameters - all params default to NOT kept (removed)
+        // Only checked params will be kept
+        queryParams = UrlProcessor.parseQueryParams(currentUrl, new HashSet<>());
         
         // Reconstruct URL with filtered parameters
         currentUrl = UrlProcessor.reconstructUrl(currentUrl, queryParams);
@@ -264,7 +279,7 @@ public class ProcessingActivity extends AppCompatActivity {
             urlPreview.setTextColor(Color.RED);
             findViewById(R.id.shareButton).setEnabled(false);
         } else {
-            urlPreview.setTextColor(ContextCompat.getColor(this, android.R.color.primary_text_light));
+            urlPreview.setTextColor(ContextCompat.getColor(this, R.color.text_dark));
             findViewById(R.id.shareButton).setEnabled(true);
         }
     }
@@ -303,12 +318,24 @@ public class ProcessingActivity extends AppCompatActivity {
      * Shows a dialog to add a new transform with live preview of the result.
      */
     private void showAddTransformDialog() {
+        showAddTransformDialogWithDefaults("", "", "");
+    }
+
+    /**
+     * Shows transform dialog with pre-filled values.
+     */
+    private void showAddTransformDialogWithDefaults(String defaultName, String defaultPattern, String defaultReplacement) {
         View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_transform, null);
         EditText nameEdit = dialogView.findViewById(R.id.transformName);
         EditText patternEdit = dialogView.findViewById(R.id.transformPattern);
         EditText replacementEdit = dialogView.findViewById(R.id.transformReplacement);
         TextView previewLabel = dialogView.findViewById(R.id.previewLabel);
         TextView previewResult = dialogView.findViewById(R.id.previewResult);
+
+        // Pre-fill defaults
+        nameEdit.setText(defaultName);
+        patternEdit.setText(defaultPattern);
+        replacementEdit.setText(defaultReplacement);
 
         // TextWatcher to update preview when pattern or replacement changes
         TextWatcher previewWatcher = new TextWatcher() {
@@ -328,6 +355,9 @@ public class ProcessingActivity extends AppCompatActivity {
 
         patternEdit.addTextChangedListener(previewWatcher);
         replacementEdit.addTextChangedListener(previewWatcher);
+        
+        // Trigger initial preview
+        updateTransformPreview(defaultPattern, defaultReplacement, previewLabel, previewResult);
 
         new AlertDialog.Builder(this)
             .setTitle(R.string.add_transform)
@@ -359,6 +389,7 @@ public class ProcessingActivity extends AppCompatActivity {
                         processUrl();
                     })
                     .setNegativeButton(R.string.this_time_only, (d, w) -> {
+                        // Add to transforms list but don't save
                         transforms.add(newTransform);
                         processUrl();
                     })
@@ -387,7 +418,7 @@ public class ProcessingActivity extends AppCompatActivity {
                 previewLabel.setVisibility(View.VISIBLE);
                 previewResult.setVisibility(View.VISIBLE);
                 previewResult.setText(result);
-                previewResult.setTextColor(ContextCompat.getColor(this, android.R.color.holo_green_dark));
+                previewResult.setTextColor(ContextCompat.getColor(this, R.color.primary));
             } else {
                 previewLabel.setVisibility(View.VISIBLE);
                 previewResult.setVisibility(View.VISIBLE);
@@ -400,35 +431,6 @@ public class ProcessingActivity extends AppCompatActivity {
             previewResult.setText(R.string.invalid_regex);
             previewResult.setTextColor(Color.RED);
         }
-    }
-
-    /**
-     * Show dialog to add a parameter to whitelist on the fly.
-     */
-    private void showAddParamToWhitelistDialog() {
-        View dialogView = LayoutInflater.from(this).inflate(R.layout.dialog_param, null);
-        EditText nameEdit = dialogView.findViewById(R.id.paramName);
-        EditText descEdit = dialogView.findViewById(R.id.paramDescription);
-
-        new AlertDialog.Builder(this)
-            .setTitle(R.string.add_parameter)
-            .setView(dialogView)
-            .setPositiveButton(R.string.add, (dialog, which) -> {
-                String name = nameEdit.getText().toString().trim();
-                String description = descEdit.getText().toString().trim();
-
-                if (name.isEmpty()) {
-                    Toast.makeText(this, R.string.name_required, Toast.LENGTH_SHORT).show();
-                    return;
-                }
-
-                allowedParameters.add(new AllowedParameter(name, description));
-                allowedParamNames.add(name);
-                configRepository.saveAllowedParameters(allowedParameters);
-                processUrl();
-            })
-            .setNegativeButton(R.string.cancel, null)
-            .show();
     }
 
     /**
@@ -446,8 +448,9 @@ public class ProcessingActivity extends AppCompatActivity {
                 getString(R.string.delete_from_config)
             }, (dialog, which) -> {
                 switch (which) {
-                    case 0: // This URL only
+                    case 0: // This URL only - just mark as disabled temporarily
                         disabledForThisUrl.add(mainPosition);
+                        enabledForThisUrl.remove(mainPosition);
                         break;
                     case 1: // Disable in config
                         transform.setEnabled(false);
@@ -465,72 +468,14 @@ public class ProcessingActivity extends AppCompatActivity {
     }
 
     /**
-     * Requirement 3.7: Query Parameter Toggling - Keep parameter
+     * Show dialog to add a transform that removes a specific parameter.
      */
-    private void showKeepParamDialog(UrlProcessor.QueryParam param) {
-        new AlertDialog.Builder(this)
-            .setTitle(R.string.keep_parameter)
-            .setItems(new CharSequence[]{
-                getString(R.string.this_time_only),
-                getString(R.string.add_to_whitelist)
-            }, (dialog, which) -> {
-                param.keep = true;
-                if (which == 1) { // Add to whitelist
-                    showAddToWhitelistDialog(param.name);
-                }
-                processUrl();
-            })
-            .setNegativeButton(R.string.cancel, null)
-            .show();
-    }
-
-    /**
-     * Requirement 3.7: Add to whitelist with optional description
-     */
-    private void showAddToWhitelistDialog(String paramName) {
-        EditText descEdit = new EditText(this);
-        descEdit.setHint(R.string.description_optional);
-
-        new AlertDialog.Builder(this)
-            .setTitle(R.string.add_to_whitelist)
-            .setMessage(getString(R.string.add_param_message, paramName))
-            .setView(descEdit)
-            .setPositiveButton(R.string.add, (dialog, which) -> {
-                String description = descEdit.getText().toString().trim();
-                allowedParameters.add(new AllowedParameter(paramName, description));
-                allowedParamNames.add(paramName);
-                configRepository.saveAllowedParameters(allowedParameters);
-            })
-            .setNegativeButton(R.string.cancel, null)
-            .show();
-    }
-
-    /**
-     * Requirement 3.7: Query Parameter Toggling - Remove parameter
-     */
-    private void showRemoveParamDialog(UrlProcessor.QueryParam param) {
-        new AlertDialog.Builder(this)
-            .setTitle(R.string.remove_parameter)
-            .setItems(new CharSequence[]{
-                getString(R.string.this_time_only),
-                getString(R.string.remove_from_whitelist)
-            }, (dialog, which) -> {
-                param.keep = false;
-                if (which == 1) { // Remove from whitelist
-                    allowedParamNames.remove(param.name);
-                    // Find and remove from allowed parameters list
-                    for (int i = 0; i < allowedParameters.size(); i++) {
-                        if (allowedParameters.get(i).getName().equals(param.name)) {
-                            allowedParameters.remove(i);
-                            break;
-                        }
-                    }
-                    configRepository.saveAllowedParameters(allowedParameters);
-                }
-                processUrl();
-            })
-            .setNegativeButton(R.string.cancel, null)
-            .show();
+    private void showAddParamRemovalTransform(UrlProcessor.QueryParam param) {
+        String name = getString(R.string.remove_param_transform, param.name, urlHost);
+        String pattern = "[?&]" + Pattern.quote(param.name) + "=[^&]*";
+        String replacement = "";
+        
+        showAddTransformDialogWithDefaults(name, pattern, replacement);
     }
 
     /**
@@ -556,7 +501,11 @@ public class ProcessingActivity extends AppCompatActivity {
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             Transform transform = matchingTransforms.get(position);
             int mainPosition = transforms.indexOf(transform);
-            boolean disabled = disabledForThisUrl.contains(mainPosition);
+            
+            // Check if disabled for this URL (temporary disable)
+            boolean tempDisabled = disabledForThisUrl.contains(mainPosition) && 
+                                   !enabledForThisUrl.contains(mainPosition);
+            boolean effectivelyEnabled = transform.isEnabled() && !tempDisabled;
 
             // Requirement 3.2: Show name and pattern
             holder.name.setText(transform.getName());
@@ -566,7 +515,7 @@ public class ProcessingActivity extends AppCompatActivity {
             holder.itemView.setAlpha(1.0f);
 
             // Requirement 7.2: Disabled transforms with strikethrough
-            if (!transform.isEnabled() || disabled) {
+            if (!effectivelyEnabled) {
                 holder.name.setPaintFlags(holder.name.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
             } else {
                 holder.name.setPaintFlags(holder.name.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
@@ -574,15 +523,16 @@ public class ProcessingActivity extends AppCompatActivity {
 
             // Requirement 3.2: Checkbox for enable/disable
             holder.checkbox.setOnCheckedChangeListener(null);
-            holder.checkbox.setChecked(transform.isEnabled() && !disabled);
+            holder.checkbox.setChecked(effectivelyEnabled);
             holder.checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                if (!isChecked && transform.isEnabled()) {
+                if (!isChecked) {
                     // Requirement 3.4: Prompt when disabling
                     showDisableTransformDialog(position, transform);
                     holder.checkbox.setChecked(true); // Revert until user decides
-                } else if (isChecked) {
-                    // Requirement 3.4: Enable without prompting
+                } else {
+                    // Re-enabling: remove from disabled set, add to enabled set
                     disabledForThisUrl.remove(mainPosition);
+                    enabledForThisUrl.add(mainPosition);
                     if (!transform.isEnabled()) {
                         transform.setEnabled(true);
                         configRepository.saveTransforms(transforms);
@@ -630,7 +580,7 @@ public class ProcessingActivity extends AppCompatActivity {
 
     /**
      * Adapter for query parameter list.
-     * Requirement 3.6: Query Parameter List
+     * Shows parameters with strikethrough when not kept, and (+) button to add removal transform.
      */
     private class QueryParamAdapter extends RecyclerView.Adapter<QueryParamAdapter.ViewHolder> {
 
@@ -645,36 +595,35 @@ public class ProcessingActivity extends AppCompatActivity {
         @Override
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             UrlProcessor.QueryParam param = queryParams.get(position);
-            boolean isWhitelisted = allowedParamNames.contains(param.name);
 
-            // Requirement 3.6: Show name and value
+            // Show name and value
             holder.name.setText(param.name);
             holder.value.setText(param.value);
 
-            // Requirement 3.6 & 7.2: Visual distinction for whitelisted params
-            if (isWhitelisted) {
-                holder.name.setTextColor(ContextCompat.getColor(ProcessingActivity.this, android.R.color.holo_green_dark));
+            // Strikethrough for params that will be removed
+            if (!param.keep) {
+                holder.name.setPaintFlags(holder.name.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
+                holder.value.setPaintFlags(holder.value.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
+                holder.name.setTextColor(ContextCompat.getColor(ProcessingActivity.this, android.R.color.darker_gray));
+                // Show add button for unchecked params
+                holder.addTransformBtn.setVisibility(View.VISIBLE);
             } else {
-                holder.name.setTextColor(ContextCompat.getColor(ProcessingActivity.this, android.R.color.primary_text_light));
+                holder.name.setPaintFlags(holder.name.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
+                holder.value.setPaintFlags(holder.value.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
+                holder.name.setTextColor(ContextCompat.getColor(ProcessingActivity.this, R.color.text_dark));
+                holder.addTransformBtn.setVisibility(View.GONE);
             }
 
-            // Requirement 3.6: Checkbox for keep/remove
+            // Checkbox for keep/remove
             holder.checkbox.setOnCheckedChangeListener(null);
             holder.checkbox.setChecked(param.keep);
             holder.checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                if (isChecked && !isWhitelisted) {
-                    // Requirement 3.7: Prompt when keeping non-whitelisted param
-                    showKeepParamDialog(param);
-                    holder.checkbox.setChecked(false); // Revert until user decides
-                } else if (!isChecked && isWhitelisted) {
-                    // Requirement 3.7: Prompt when removing whitelisted param
-                    showRemoveParamDialog(param);
-                    holder.checkbox.setChecked(true); // Revert until user decides
-                } else {
-                    param.keep = isChecked;
-                    processUrl();
-                }
+                param.keep = isChecked;
+                processUrl();
             });
+
+            // Add transform button click
+            holder.addTransformBtn.setOnClickListener(v -> showAddParamRemovalTransform(param));
         }
 
         @Override
@@ -686,12 +635,14 @@ public class ProcessingActivity extends AppCompatActivity {
             TextView name;
             TextView value;
             CheckBox checkbox;
+            ImageButton addTransformBtn;
 
             ViewHolder(View itemView) {
                 super(itemView);
                 name = itemView.findViewById(R.id.paramName);
                 value = itemView.findViewById(R.id.paramValue);
                 checkbox = itemView.findViewById(R.id.paramCheckbox);
+                addTransformBtn = itemView.findViewById(R.id.addTransformBtn);
             }
         }
     }

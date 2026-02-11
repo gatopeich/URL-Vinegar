@@ -20,6 +20,7 @@
     <string name="add_transform">Add Transform</string>
     <string name="share_via">Share via</string>
     <string name="copied_to_clipboard">Copied to clipboard</string>
+    <string name="remove_param_transform">Remove %1$s (%2$s)</string>
     
     <!-- Transform Dialog -->
     <string name="transform_name">Name</string>

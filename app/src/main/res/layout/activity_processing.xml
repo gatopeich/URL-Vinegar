@@ -4,7 +4,28 @@
     android:layout_height="wrap_content"
     android:orientation="vertical"
     android:padding="16dp"
-    android:minWidth="300dp">
+    android:minWidth="300dp"
+    android:background="@color/lime_background">
+
+    <!-- Top bar with Settings button -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="end"
+        android:layout_marginBottom="8dp">
+
+        <ImageButton
+            android:id="@+id/settingsButton"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:src="@drawable/ic_settings"
+            android:contentDescription="@string/settings"
+            android:tooltipText="@string/settings"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:tint="@color/primary" />
+
+    </LinearLayout>
 
     <!-- URL Preview -->
     <TextView
@@ -15,6 +36,7 @@
         android:padding="12dp"
         android:background="@drawable/url_preview_background"
         android:textSize="14sp"
+        android:textColor="@color/text_dark"
         android:fontFamily="monospace" />
 
     <!-- Big Share Button -->
@@ -25,6 +47,8 @@
         android:layout_marginTop="12dp"
         android:text="@string/share"
         android:textSize="18sp"
+        android:textColor="@color/button_text"
+        android:backgroundTint="@color/primary"
         android:padding="12dp" />
 
     <!-- Transforms Section -->
@@ -47,7 +71,8 @@
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
                 android:text="@string/transforms"
-                android:textStyle="bold" />
+                android:textStyle="bold"
+                android:textColor="@color/text_dark" />
 
             <ImageButton
                 android:id="@+id/addTransformButton"
@@ -55,7 +80,8 @@
                 android:layout_height="36dp"
                 android:src="@drawable/ic_add"
                 android:contentDescription="@string/add_transform"
-                android:background="?attr/selectableItemBackgroundBorderless" />
+                android:background="?attr/selectableItemBackgroundBorderless"
+                android:tint="@color/primary" />
 
         </LinearLayout>
 
@@ -77,28 +103,12 @@
         android:layout_marginTop="8dp"
         android:visibility="gone">
 
-        <LinearLayout
+        <TextView
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/query_parameters"
-                android:textStyle="bold" />
-
-            <ImageButton
-                android:id="@+id/addParamButton"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:src="@drawable/ic_add"
-                android:contentDescription="@string/add_parameter"
-                android:background="?attr/selectableItemBackgroundBorderless" />
-
-        </LinearLayout>
+            android:text="@string/query_parameters"
+            android:textStyle="bold"
+            android:textColor="@color/text_dark" />
 
         <androidx.recyclerview.widget.RecyclerView
             android:id="@+id/paramsRecyclerView"
@@ -109,33 +119,20 @@
 
     </LinearLayout>
 
-    <!-- Secondary Action Buttons -->
+    <!-- Bottom Action Buttons -->
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:layout_marginTop="16dp"
         android:orientation="horizontal"
-        android:gravity="center_vertical">
-
-        <ImageButton
-            android:id="@+id/settingsButton"
-            android:layout_width="48dp"
-            android:layout_height="48dp"
-            android:src="@drawable/ic_settings"
-            android:contentDescription="@string/settings"
-            android:tooltipText="@string/settings"
-            android:background="?attr/selectableItemBackgroundBorderless" />
-
-        <View
-            android:layout_width="0dp"
-            android:layout_height="0dp"
-            android:layout_weight="1" />
+        android:gravity="end">
 
         <Button
             android:id="@+id/cancelButton"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/cancel"
+            android:textColor="@color/text_dark"
             style="?android:attr/buttonBarButtonStyle" />
 
         <Button
@@ -143,6 +140,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="@string/copy"
+            android:textColor="@color/text_dark"
             style="?android:attr/buttonBarButtonStyle" />
 
     </LinearLayout>
