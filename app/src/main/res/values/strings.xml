@@ -44,6 +44,9 @@
     <string name="delete_transform">Delete Transform?</string>
     <string name="delete_transform_confirm">Are you sure you want to delete this transform?</string>
     
+    <!-- Text Selection -->
+    <string name="apply_url_vinegar">Apply URL Vinegar</string>
+
     <!-- Accessibility -->
     <string name="drag_to_reorder">Drag to reorder</string>
 </resources>

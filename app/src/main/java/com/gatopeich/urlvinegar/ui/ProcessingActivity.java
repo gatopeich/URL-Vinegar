@@ -126,6 +126,14 @@ public class ProcessingActivity extends AppCompatActivity {
             String text = intent.getStringExtra(Intent.EXTRA_TEXT);
             return UrlProcessor.extractUrl(text);
         }
+
+        // ACTION_PROCESS_TEXT - Text selected in another app (API 23+)
+        if ("android.intent.action.PROCESS_TEXT".equals(action)) {
+            CharSequence text = intent.getCharSequenceExtra("android.intent.extra.PROCESS_TEXT");
+            if (text != null) {
+                return UrlProcessor.extractUrl(text.toString());
+            }
+        }
         
         return null;
     }
