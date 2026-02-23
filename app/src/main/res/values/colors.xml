@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lime/Dark Green color scheme -->
+    <color name="primary">#2E7D32</color>           <!-- Dark green for buttons -->
+    <color name="primary_dark">#1B5E20</color>      <!-- Darker green for status bar -->
+    <color name="accent">#8BC34A</color>            <!-- Lime accent -->
+    <color name="background">#C5E1A5</color>        <!-- Light lime background -->
+    <color name="lime_background">#C5E1A5</color>   <!-- Light lime background -->
+    <color name="background_light">#DCEDC8</color>  <!-- Lime-tinted background -->
+    <color name="text_dark">#1B5E20</color>         <!-- Dark green text -->
+    <color name="button_text">#FFFFFF</color>       <!-- White text on buttons -->
+</resources>
