@@ -83,6 +83,11 @@ public class ProcessingActivity extends AppCompatActivity {
         // Extract URL from intent
         originalUrl = extractUrlFromIntent(getIntent());
         if (originalUrl == null) {
+            // For PROCESS_TEXT with no URL, silently finish
+            if (Intent.ACTION_PROCESS_TEXT.equals(getIntent().getAction())) {
+                finish();
+                return;
+            }
             // No URL found, open config activity instead
             startActivity(new Intent(this, ConfigActivity.class));
             finish();
@@ -128,9 +133,10 @@ public class ProcessingActivity extends AppCompatActivity {
         }
 
         // ACTION_PROCESS_TEXT - Text selected in another app (API 23+)
+        // Only process if the selection starts with "http" (case-insensitive)
         if (Intent.ACTION_PROCESS_TEXT.equals(action)) {
             CharSequence text = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT);
-            if (text != null) {
+            if (text != null && UrlProcessor.looksLikeUrl(text.toString())) {
                 return UrlProcessor.extractUrl(text.toString());
             }
         }

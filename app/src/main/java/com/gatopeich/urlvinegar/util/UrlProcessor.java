@@ -190,6 +190,17 @@ public class UrlProcessor {
     }
 
     /**
+     * Check if text looks like it could be a URL (starts with "http", case-insensitive).
+     */
+    public static boolean looksLikeUrl(String text) {
+        if (text == null) {
+            return false;
+        }
+        String trimmed = text.trim();
+        return trimmed.regionMatches(true, 0, "http", 0, 4);
+    }
+
+    /**
      * Extract URL from text (for ACTION_SEND intents).
      * Requirement 2.2: URL Reception
      */

@@ -185,4 +185,45 @@ public class UrlProcessorTest {
         
         assertEquals("https://example.com/path?id=123#section", result);
     }
+
+    @Test
+    public void testLooksLikeUrl_httpUrl() {
+        assertTrue(UrlProcessor.looksLikeUrl("http://example.com"));
+    }
+
+    @Test
+    public void testLooksLikeUrl_httpsUrl() {
+        assertTrue(UrlProcessor.looksLikeUrl("https://example.com/page?id=1"));
+    }
+
+    @Test
+    public void testLooksLikeUrl_caseInsensitive() {
+        assertTrue(UrlProcessor.looksLikeUrl("Http://Example.com"));
+        assertTrue(UrlProcessor.looksLikeUrl("HTTP://EXAMPLE.COM"));
+    }
+
+    @Test
+    public void testLooksLikeUrl_leadingWhitespace() {
+        assertTrue(UrlProcessor.looksLikeUrl("  https://example.com"));
+    }
+
+    @Test
+    public void testLooksLikeUrl_plainText() {
+        assertFalse(UrlProcessor.looksLikeUrl("just some text"));
+    }
+
+    @Test
+    public void testLooksLikeUrl_nullInput() {
+        assertFalse(UrlProcessor.looksLikeUrl(null));
+    }
+
+    @Test
+    public void testLooksLikeUrl_emptyInput() {
+        assertFalse(UrlProcessor.looksLikeUrl(""));
+    }
+
+    @Test
+    public void testLooksLikeUrl_shortInput() {
+        assertFalse(UrlProcessor.looksLikeUrl("htt"));
+    }
 }
