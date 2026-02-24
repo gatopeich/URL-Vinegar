@@ -236,4 +236,9 @@ public class UrlProcessorTest {
     public void testLooksLikeUrl_httpColonOnly() {
         assertFalse(UrlProcessor.looksLikeUrl("http:something"));
     }
+
+    @Test
+    public void testLooksLikeUrl_urlNotAtStart() {
+        assertFalse(UrlProcessor.looksLikeUrl("see http://example.com"));
+    }
 }
