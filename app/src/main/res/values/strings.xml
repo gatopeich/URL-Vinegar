@@ -5,6 +5,7 @@
     
     <!-- Actions -->
     <string name="share">Share</string>
+    <string name="apply">Apply</string>
     <string name="copy">Copy</string>
     <string name="cancel">Cancel</string>
     <string name="save">Save</string>

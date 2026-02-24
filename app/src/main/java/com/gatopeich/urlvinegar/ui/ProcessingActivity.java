@@ -14,6 +14,7 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageButton;
@@ -60,6 +61,7 @@ public class ProcessingActivity extends AppCompatActivity {
     private String originalUrl;
     private String currentUrl;
     private String urlHost;
+    private boolean isProcessTextIntent;
 
     private TextView urlPreview;
     private RecyclerView transformsRecyclerView;
@@ -81,10 +83,11 @@ public class ProcessingActivity extends AppCompatActivity {
         enabledForThisUrl = new HashSet<>();
 
         // Extract URL from intent
+        isProcessTextIntent = Intent.ACTION_PROCESS_TEXT.equals(getIntent().getAction());
         originalUrl = extractUrlFromIntent(getIntent());
         if (originalUrl == null) {
             // For PROCESS_TEXT with no URL, silently finish
-            if (Intent.ACTION_PROCESS_TEXT.equals(getIntent().getAction())) {
+            if (isProcessTextIntent) {
                 finish();
                 return;
             }
@@ -188,7 +191,15 @@ public class ProcessingActivity extends AppCompatActivity {
         paramsRecyclerView.setAdapter(paramAdapter);
 
         // Setup buttons
-        findViewById(R.id.shareButton).setOnClickListener(v -> shareUrl());
+        // When launched via PROCESS_TEXT, the main button returns the cleaned URL
+        // to the calling app; otherwise it opens the share chooser.
+        Button mainButton = findViewById(R.id.shareButton);
+        if (isProcessTextIntent) {
+            mainButton.setText(R.string.apply);
+            mainButton.setOnClickListener(v -> returnProcessedText());
+        } else {
+            mainButton.setOnClickListener(v -> shareUrl());
+        }
         findViewById(R.id.copyButton).setOnClickListener(v -> copyUrl());
         findViewById(R.id.cancelButton).setOnClickListener(v -> finish());
         findViewById(R.id.settingsButton).setOnClickListener(v -> openSettings());
@@ -296,6 +307,16 @@ public class ProcessingActivity extends AppCompatActivity {
             urlPreview.setTextColor(ContextCompat.getColor(this, R.color.text_dark));
             findViewById(R.id.shareButton).setEnabled(true);
         }
+    }
+
+    /**
+     * Return the cleaned URL to the calling app via PROCESS_TEXT result.
+     */
+    private void returnProcessedText() {
+        Intent resultIntent = new Intent();
+        resultIntent.putExtra(Intent.EXTRA_PROCESS_TEXT, currentUrl);
+        setResult(RESULT_OK, resultIntent);
+        finish();
     }
 
     /**
