@@ -226,4 +226,14 @@ public class UrlProcessorTest {
     public void testLooksLikeUrl_shortInput() {
         assertFalse(UrlProcessor.looksLikeUrl("htt"));
     }
+
+    @Test
+    public void testLooksLikeUrl_httpWithoutScheme() {
+        assertFalse(UrlProcessor.looksLikeUrl("httpnotaurl"));
+    }
+
+    @Test
+    public void testLooksLikeUrl_httpColonOnly() {
+        assertFalse(UrlProcessor.looksLikeUrl("http:something"));
+    }
 }

@@ -189,15 +189,16 @@ public class UrlProcessor {
         }
     }
 
+    private static final Pattern URL_SCHEME_PATTERN = Pattern.compile("^https?://", Pattern.CASE_INSENSITIVE);
+
     /**
-     * Check if text looks like it could be a URL (starts with "http", case-insensitive).
+     * Check if text looks like it could be a URL (matches ^https?://).
      */
     public static boolean looksLikeUrl(String text) {
         if (text == null) {
             return false;
         }
-        String trimmed = text.trim();
-        return trimmed.regionMatches(true, 0, "http", 0, 4);
+        return URL_SCHEME_PATTERN.matcher(text.trim()).find();
     }
 
     /**
