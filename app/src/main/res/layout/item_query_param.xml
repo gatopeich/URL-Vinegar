@@ -51,7 +51,7 @@
         android:id="@+id/addTransformBtn"
         android:layout_width="32dp"
         android:layout_height="32dp"
-        android:src="@drawable/ic_add"
+        android:src="@drawable/ic_settings"
         android:contentDescription="@string/add_transform"
         android:background="?attr/selectableItemBackgroundBorderless"
         android:tint="@color/primary"

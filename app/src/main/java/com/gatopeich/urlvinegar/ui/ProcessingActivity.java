@@ -62,6 +62,7 @@ public class ProcessingActivity extends AppCompatActivity {
     private String currentUrl;
     private String urlHost;
     private boolean isProcessTextIntent;
+    private Set<String> userRemovedParams; // Track params the user explicitly unchecked
 
     private TextView urlPreview;
     private RecyclerView transformsRecyclerView;
@@ -81,6 +82,7 @@ public class ProcessingActivity extends AppCompatActivity {
         matchingTransforms = new ArrayList<>();
         disabledForThisUrl = new HashSet<>();
         enabledForThisUrl = new HashSet<>();
+        userRemovedParams = new HashSet<>();
 
         // Extract URL from intent
         isProcessTextIntent = Intent.ACTION_PROCESS_TEXT.equals(getIntent().getAction());
@@ -260,9 +262,12 @@ public class ProcessingActivity extends AppCompatActivity {
         
         currentUrl = result.url;
         
-        // Parse query parameters - all params default to NOT kept (removed)
-        // Only checked params will be kept
+        // Parse query parameters - default all to KEPT (enabled)
+        // Then apply any user overrides (params they explicitly unchecked)
         queryParams = UrlProcessor.parseQueryParams(currentUrl, new HashSet<>());
+        for (UrlProcessor.QueryParam p : queryParams) {
+            p.keep = !userRemovedParams.contains(p.name);
+        }
         
         // Reconstruct URL with filtered parameters
         currentUrl = UrlProcessor.reconstructUrl(currentUrl, queryParams);
@@ -640,7 +645,7 @@ public class ProcessingActivity extends AppCompatActivity {
                 holder.name.setPaintFlags(holder.name.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
                 holder.value.setPaintFlags(holder.value.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
                 holder.name.setTextColor(ContextCompat.getColor(ProcessingActivity.this, android.R.color.darker_gray));
-                // Show add button for unchecked params
+                // Show cog button for unchecked params to add removal regex
                 holder.addTransformBtn.setVisibility(View.VISIBLE);
             } else {
                 holder.name.setPaintFlags(holder.name.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
@@ -654,6 +659,11 @@ public class ProcessingActivity extends AppCompatActivity {
             holder.checkbox.setChecked(param.keep);
             holder.checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> {
                 param.keep = isChecked;
+                if (isChecked) {
+                    userRemovedParams.remove(param.name);
+                } else {
+                    userRemovedParams.add(param.name);
+                }
                 processUrl();
             });
 
