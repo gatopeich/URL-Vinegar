@@ -5,6 +5,7 @@ import com.gatopeich.urlvinegar.data.Transform;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -49,11 +50,20 @@ public class UrlProcessor {
         public final String name;
         public final String value;
         public boolean keep;
+        public String removedBy; // Name of transform that removed this param (null if kept)
 
         public QueryParam(String name, String value, boolean keep) {
             this.name = name;
             this.value = value;
             this.keep = keep;
+            this.removedBy = null;
+        }
+
+        public QueryParam(String name, String value, boolean keep, String removedBy) {
+            this.name = name;
+            this.value = value;
+            this.keep = keep;
+            this.removedBy = removedBy;
         }
     }
 
@@ -187,6 +197,122 @@ public class UrlProcessor {
             // Requirement 9.2: If URL cannot be parsed, return unmodified
             return url;
         }
+    }
+
+    /**
+     * Parse query parameters from the original URL and determine which are removed by transforms.
+     * Returns all original params with keep=true for those that survive and keep=false + removedBy
+     * for those that are removed by a transform.
+     *
+     * @param originalUrl The original URL before transforms
+     * @param transformedUrl The URL after transforms are applied
+     * @param transforms The list of transforms
+     * @param disabledIndices Indices of disabled transforms
+     * @param userRemovedParams Set of param names the user explicitly removed
+     * @return List of QueryParam objects with removal tracking
+     */
+    public static List<QueryParam> parseParamsWithTracking(
+            String originalUrl, String transformedUrl,
+            List<Transform> transforms, Set<Integer> disabledIndices,
+            Set<String> userRemovedParams) {
+
+        // Parse params from the original URL
+        List<QueryParam> originalParams = parseQueryParams(originalUrl, new HashSet<String>());
+        // Parse params from the transformed URL
+        List<QueryParam> transformedParams = parseQueryParams(transformedUrl, new HashSet<String>());
+
+        // Build set of param names that survived transforms
+        Set<String> survivingParamNames = new HashSet<>();
+        for (QueryParam p : transformedParams) {
+            survivingParamNames.add(p.name);
+        }
+
+        // For each original param, determine if it was removed and by which transform
+        List<QueryParam> result = new ArrayList<>();
+        for (QueryParam origParam : originalParams) {
+            if (survivingParamNames.contains(origParam.name)) {
+                // Find matching transformed param to get possibly-updated value
+                String value = origParam.value;
+                for (QueryParam tp : transformedParams) {
+                    if (tp.name.equals(origParam.name)) {
+                        value = tp.value;
+                        break;
+                    }
+                }
+                boolean keep = !userRemovedParams.contains(origParam.name);
+                result.add(new QueryParam(origParam.name, value, keep));
+            } else {
+                // Param was removed - find which transform removed it
+                String removedBy = findRemovingTransform(originalUrl, origParam.name, transforms, disabledIndices);
+                QueryParam qp = new QueryParam(origParam.name, origParam.value, false, removedBy);
+                result.add(qp);
+            }
+        }
+
+        // Also add params that only exist in the transformed URL (e.g., added by transforms)
+        for (QueryParam tp : transformedParams) {
+            boolean found = false;
+            for (QueryParam r : result) {
+                if (r.name.equals(tp.name)) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) {
+                boolean keep = !userRemovedParams.contains(tp.name);
+                result.add(new QueryParam(tp.name, tp.value, keep));
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Find which transform removed a specific parameter from the URL.
+     */
+    private static String findRemovingTransform(String url, String paramName,
+            List<Transform> transforms, Set<Integer> disabledIndices) {
+        String current = url;
+        for (int i = 0; i < transforms.size(); i++) {
+            Transform transform = transforms.get(i);
+            if (!transform.isEnabled() || (disabledIndices != null && disabledIndices.contains(i))) {
+                continue;
+            }
+            try {
+                Pattern pattern = Pattern.compile(transform.getPattern());
+                Matcher matcher = pattern.matcher(current);
+                if (matcher.find()) {
+                    String after = matcher.replaceAll(transform.getReplacement());
+                    // Check if this transform removed the param
+                    if (containsParam(current, paramName) && !containsParam(after, paramName)) {
+                        return transform.getName();
+                    }
+                    current = after;
+                }
+            } catch (PatternSyntaxException e) {
+                continue;
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Check if a URL string contains a specific query parameter.
+     */
+    private static boolean containsParam(String url, String paramName) {
+        try {
+            URI uri = new URI(url);
+            String query = uri.getRawQuery();
+            if (query == null || query.isEmpty()) return false;
+            for (String pair : query.split("&")) {
+                String name = pair.split("=", 2)[0];
+                if (name.equals(paramName)) return true;
+            }
+        } catch (URISyntaxException e) {
+            // Fall back to simple string check
+            return url.contains(paramName + "=");
+        }
+        return false;
     }
 
     private static final Pattern URL_SCHEME_PATTERN = Pattern.compile("^https?://", Pattern.CASE_INSENSITIVE);

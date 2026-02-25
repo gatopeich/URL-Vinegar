@@ -4,7 +4,8 @@
     android:layout_height="wrap_content"
     android:orientation="horizontal"
     android:padding="8dp"
-    android:gravity="center_vertical">
+    android:gravity="center_vertical"
+    android:background="?attr/selectableItemBackground">
 
     <!-- Checkbox -->
     <CheckBox
@@ -30,10 +31,10 @@
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:text="="
+            android:text=" · "
             android:layout_marginStart="4dp"
             android:layout_marginEnd="4dp"
-            android:textColor="@color/text_dark" />
+            android:textColor="@android:color/darker_gray" />
 
         <TextView
             android:id="@+id/paramValue"
@@ -45,16 +46,5 @@
             android:textColor="@android:color/secondary_text_light" />
 
     </LinearLayout>
-
-    <!-- Add Transform Button (visible when unchecked) -->
-    <ImageButton
-        android:id="@+id/addTransformBtn"
-        android:layout_width="32dp"
-        android:layout_height="32dp"
-        android:src="@drawable/ic_settings"
-        android:contentDescription="@string/add_transform"
-        android:background="?attr/selectableItemBackgroundBorderless"
-        android:tint="@color/primary"
-        android:visibility="gone" />
 
 </LinearLayout>

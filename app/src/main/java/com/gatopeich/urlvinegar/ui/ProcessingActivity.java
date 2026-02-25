@@ -11,14 +11,11 @@ import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.LayoutInflater;
-import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
-import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -27,7 +24,6 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
-import androidx.recyclerview.widget.ItemTouchHelper;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -36,8 +32,6 @@ import com.gatopeich.urlvinegar.data.ConfigRepository;
 import com.gatopeich.urlvinegar.data.Transform;
 import com.gatopeich.urlvinegar.util.UrlProcessor;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -47,15 +41,13 @@ import java.util.regex.PatternSyntaxException;
 
 /**
  * Processing Activity - Handles URL cleaning dialog.
- * Implements requirements from Section 3: Processing Dialog
+ * Shows a unified list of query parameters: kept ones with values,
+ * removed ones with the transform name that removed them.
  */
 public class ProcessingActivity extends AppCompatActivity {
 
     private ConfigRepository configRepository;
     private List<Transform> transforms;
-    private List<Transform> matchingTransforms; // Only transforms that match the URL
-    private Set<Integer> disabledForThisUrl; // Track disabled transforms for this URL
-    private Set<Integer> enabledForThisUrl;  // Track temporarily enabled transforms
     private List<UrlProcessor.QueryParam> queryParams;
 
     private String originalUrl;
@@ -63,13 +55,11 @@ public class ProcessingActivity extends AppCompatActivity {
     private String urlHost;
     private boolean isProcessTextIntent;
     private Set<String> userRemovedParams; // Track params the user explicitly unchecked
+    private Set<String> userRestoredParams; // Track params the user explicitly re-checked (override transform removal)
 
     private TextView urlPreview;
-    private RecyclerView transformsRecyclerView;
     private RecyclerView paramsRecyclerView;
-    private LinearLayout transformsSection;
     private LinearLayout paramsSection;
-    private TransformAdapter transformAdapter;
     private QueryParamAdapter paramAdapter;
 
     @Override
@@ -79,10 +69,8 @@ public class ProcessingActivity extends AppCompatActivity {
 
         configRepository = ConfigRepository.getInstance(this);
         transforms = configRepository.loadTransforms();
-        matchingTransforms = new ArrayList<>();
-        disabledForThisUrl = new HashSet<>();
-        enabledForThisUrl = new HashSet<>();
         userRemovedParams = new HashSet<>();
+        userRestoredParams = new HashSet<>();
 
         // Extract URL from intent
         isProcessTextIntent = Intent.ACTION_PROCESS_TEXT.equals(getIntent().getAction());
@@ -151,41 +139,8 @@ public class ProcessingActivity extends AppCompatActivity {
 
     private void setupViews() {
         urlPreview = findViewById(R.id.urlPreview);
-        transformsRecyclerView = findViewById(R.id.transformsRecyclerView);
         paramsRecyclerView = findViewById(R.id.paramsRecyclerView);
-        transformsSection = findViewById(R.id.transformsSection);
         paramsSection = findViewById(R.id.paramsSection);
-
-        // Setup transforms RecyclerView with drag-and-drop
-        transformAdapter = new TransformAdapter();
-        transformsRecyclerView.setLayoutManager(new LinearLayoutManager(this));
-        transformsRecyclerView.setAdapter(transformAdapter);
-        
-        // Requirement 3.3: Drag handles for reordering
-        ItemTouchHelper touchHelper = new ItemTouchHelper(new ItemTouchHelper.SimpleCallback(
-                ItemTouchHelper.UP | ItemTouchHelper.DOWN, 0) {
-            @Override
-            public boolean onMove(@NonNull RecyclerView recyclerView, 
-                    @NonNull RecyclerView.ViewHolder viewHolder, 
-                    @NonNull RecyclerView.ViewHolder target) {
-                int from = viewHolder.getAdapterPosition();
-                int to = target.getAdapterPosition();
-                // Swap in matching transforms list
-                Collections.swap(matchingTransforms, from, to);
-                transformAdapter.notifyItemMoved(from, to);
-                // Also update order in main transforms list and persist
-                reorderTransformsInConfig();
-                processUrl();
-                return true;
-            }
-
-            @Override
-            public void onSwiped(@NonNull RecyclerView.ViewHolder viewHolder, int direction) {
-                // No swipe support
-            }
-        });
-        touchHelper.attachToRecyclerView(transformsRecyclerView);
-        transformAdapter.setTouchHelper(touchHelper);
 
         // Setup query params RecyclerView
         paramAdapter = new QueryParamAdapter();
@@ -205,77 +160,32 @@ public class ProcessingActivity extends AppCompatActivity {
         findViewById(R.id.copyButton).setOnClickListener(v -> copyUrl());
         findViewById(R.id.cancelButton).setOnClickListener(v -> finish());
         findViewById(R.id.settingsButton).setOnClickListener(v -> openSettings());
-        findViewById(R.id.addTransformButton).setOnClickListener(v -> showAddTransformDialog());
-    }
-
-    /**
-     * Reorder transforms in the main config list based on current matching transforms order.
-     */
-    private void reorderTransformsInConfig() {
-        // For simplicity, we update the enabled transforms order
-        // by rebuilding the transforms list with matching transforms first
-        List<Transform> newOrder = new ArrayList<>();
-        Set<Integer> addedIndices = new HashSet<>();
-        
-        // Add matching transforms first in their new order
-        for (Transform t : matchingTransforms) {
-            int idx = transforms.indexOf(t);
-            if (idx >= 0 && !addedIndices.contains(idx)) {
-                newOrder.add(t);
-                addedIndices.add(idx);
-            }
-        }
-        
-        // Add remaining non-matching transforms
-        for (int i = 0; i < transforms.size(); i++) {
-            if (!addedIndices.contains(i)) {
-                newOrder.add(transforms.get(i));
-            }
-        }
-        
-        // Replace transforms list with new order
-        transforms = newOrder;
-        configRepository.saveTransforms(transforms);
     }
 
     private void processUrl() {
-        // Build list of matching transforms
-        matchingTransforms.clear();
-        for (Transform transform : transforms) {
-            if (UrlProcessor.transformMatches(originalUrl, transform)) {
-                matchingTransforms.add(transform);
-            }
-        }
-
-        // Build set of disabled indices for processing
-        Set<Integer> processDisabled = new HashSet<>();
-        for (int i = 0; i < transforms.size(); i++) {
-            // Disabled if: in disabledForThisUrl AND not in enabledForThisUrl
-            if (disabledForThisUrl.contains(i) && !enabledForThisUrl.contains(i)) {
-                processDisabled.add(i);
-            }
-        }
-
         // Apply transforms
         UrlProcessor.ProcessResult result = UrlProcessor.applyTransforms(
-            originalUrl, transforms, processDisabled);
+            originalUrl, transforms, null);
         
-        currentUrl = result.url;
-        
-        // Parse query parameters - default all to KEPT (enabled)
-        // Then apply any user overrides (params they explicitly unchecked)
-        queryParams = UrlProcessor.parseQueryParams(currentUrl, new HashSet<>());
+        String transformedUrl = result.url;
+
+        // Parse params with tracking: compares original vs transformed to find removals
+        queryParams = UrlProcessor.parseParamsWithTracking(
+            originalUrl, transformedUrl, transforms, null, userRemovedParams);
+
+        // Apply user overrides: if user restored a param that was removed by transform, mark as keep
         for (UrlProcessor.QueryParam p : queryParams) {
-            p.keep = !userRemovedParams.contains(p.name);
+            if (userRestoredParams.contains(p.name) && p.removedBy != null) {
+                p.keep = true;
+            }
         }
-        
-        // Reconstruct URL with filtered parameters
-        currentUrl = UrlProcessor.reconstructUrl(currentUrl, queryParams);
+
+        // Reconstruct URL with filtered parameters using the transformed URL as base
+        currentUrl = UrlProcessor.reconstructUrl(transformedUrl, queryParams);
         
         // Update UI
         updatePreview(result);
         updateSectionVisibility();
-        transformAdapter.notifyDataSetChanged();
         paramAdapter.notifyDataSetChanged();
     }
 
@@ -283,13 +193,6 @@ public class ProcessingActivity extends AppCompatActivity {
      * Show/hide sections based on content availability.
      */
     private void updateSectionVisibility() {
-        // Show transforms section only if there are matching transforms
-        if (matchingTransforms.isEmpty()) {
-            transformsSection.setVisibility(View.GONE);
-        } else {
-            transformsSection.setVisibility(View.VISIBLE);
-        }
-
         // Show params section only if there are query params
         if (queryParams == null || queryParams.isEmpty()) {
             paramsSection.setVisibility(View.GONE);
@@ -474,37 +377,62 @@ public class ProcessingActivity extends AppCompatActivity {
     }
 
     /**
-     * Requirement 3.4: Transform Toggling
+     * Show dialog when a parameter is tapped.
+     * For kept params: offer to deny (one time) or add removal regex (config).
+     * For removed params: offer to allow (one time) or edit/remove the regex (config).
      */
-    private void showDisableTransformDialog(int position, Transform transform) {
-        // Find the actual position in the main transforms list
-        int mainPosition = transforms.indexOf(transform);
-        
-        new AlertDialog.Builder(this)
-            .setTitle(R.string.disable_transform)
-            .setItems(new CharSequence[]{
-                getString(R.string.this_url_only),
-                getString(R.string.disable_in_config),
-                getString(R.string.delete_from_config)
-            }, (dialog, which) -> {
-                switch (which) {
-                    case 0: // This URL only - just mark as disabled temporarily
-                        disabledForThisUrl.add(mainPosition);
-                        enabledForThisUrl.remove(mainPosition);
-                        break;
-                    case 1: // Disable in config
-                        transform.setEnabled(false);
-                        configRepository.saveTransforms(transforms);
-                        break;
-                    case 2: // Delete from config
-                        transforms.remove(transform);
-                        configRepository.saveTransforms(transforms);
-                        break;
-                }
-                processUrl();
-            })
-            .setNegativeButton(R.string.cancel, null)
-            .show();
+    private void showParamActionDialog(UrlProcessor.QueryParam param) {
+        if (param.keep) {
+            // Param is currently kept - offer to remove
+            new AlertDialog.Builder(this)
+                .setTitle(param.name)
+                .setItems(new CharSequence[]{
+                    getString(R.string.remove_this_time),
+                    getString(R.string.add_removal_regex)
+                }, (dialog, which) -> {
+                    switch (which) {
+                        case 0: // Remove this time only
+                            userRemovedParams.add(param.name);
+                            userRestoredParams.remove(param.name);
+                            processUrl();
+                            break;
+                        case 1: // Add removal regex to config
+                            showAddParamRemovalTransform(param);
+                            break;
+                    }
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+        } else {
+            // Param is currently removed - offer to allow
+            CharSequence[] items;
+            if (param.removedBy != null) {
+                items = new CharSequence[]{
+                    getString(R.string.allow_this_time),
+                    getString(R.string.edit_removal_regex, param.removedBy)
+                };
+            } else {
+                items = new CharSequence[]{
+                    getString(R.string.allow_this_time)
+                };
+            }
+            new AlertDialog.Builder(this)
+                .setTitle(param.name)
+                .setItems(items, (dialog, which) -> {
+                    switch (which) {
+                        case 0: // Allow this time
+                            userRestoredParams.add(param.name);
+                            userRemovedParams.remove(param.name);
+                            processUrl();
+                            break;
+                        case 1: // Edit the regex in config
+                            openSettings();
+                            break;
+                    }
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .show();
+        }
     }
 
     /**
@@ -519,108 +447,9 @@ public class ProcessingActivity extends AppCompatActivity {
     }
 
     /**
-     * Adapter for transform list.
-     * Requirement 3.2: Transform List - Only shows matching transforms
-     */
-    private class TransformAdapter extends RecyclerView.Adapter<TransformAdapter.ViewHolder> {
-        private ItemTouchHelper touchHelper;
-
-        void setTouchHelper(ItemTouchHelper helper) {
-            this.touchHelper = helper;
-        }
-
-        @NonNull
-        @Override
-        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-            View view = LayoutInflater.from(parent.getContext())
-                .inflate(R.layout.item_transform, parent, false);
-            return new ViewHolder(view);
-        }
-
-        @Override
-        public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
-            Transform transform = matchingTransforms.get(position);
-            int mainPosition = transforms.indexOf(transform);
-            
-            // Check if disabled for this URL (temporary disable)
-            boolean tempDisabled = disabledForThisUrl.contains(mainPosition) && 
-                                   !enabledForThisUrl.contains(mainPosition);
-            boolean effectivelyEnabled = transform.isEnabled() && !tempDisabled;
-
-            // Requirement 3.2: Show name and pattern
-            holder.name.setText(transform.getName());
-            holder.pattern.setText(transform.getPattern());
-
-            // All displayed transforms match, so always full opacity
-            holder.itemView.setAlpha(1.0f);
-
-            // Requirement 7.2: Disabled transforms with strikethrough
-            if (!effectivelyEnabled) {
-                holder.name.setPaintFlags(holder.name.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
-            } else {
-                holder.name.setPaintFlags(holder.name.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
-            }
-
-            // Requirement 3.2: Checkbox for enable/disable
-            holder.checkbox.setOnCheckedChangeListener(null);
-            holder.checkbox.setChecked(effectivelyEnabled);
-            holder.checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                if (!isChecked) {
-                    // Requirement 3.4: Prompt when disabling
-                    showDisableTransformDialog(position, transform);
-                    holder.checkbox.setChecked(true); // Revert until user decides
-                } else {
-                    // Re-enabling: remove from disabled set, add to enabled set
-                    disabledForThisUrl.remove(mainPosition);
-                    enabledForThisUrl.add(mainPosition);
-                    if (!transform.isEnabled()) {
-                        transform.setEnabled(true);
-                        configRepository.saveTransforms(transforms);
-                    }
-                    processUrl();
-                }
-            });
-
-            // Requirement 3.3 & 7.3: Drag handles
-            holder.dragHandle.setOnTouchListener((v, event) -> {
-                if (event.getAction() == MotionEvent.ACTION_DOWN) {
-                    touchHelper.startDrag(holder);
-                }
-                return false;
-            });
-
-            // Highlight invalid regex in red
-            if (!UrlProcessor.isValidPattern(transform.getPattern())) {
-                holder.pattern.setTextColor(Color.RED);
-            } else {
-                holder.pattern.setTextColor(ContextCompat.getColor(ProcessingActivity.this, android.R.color.secondary_text_light));
-            }
-        }
-
-        @Override
-        public int getItemCount() {
-            return matchingTransforms.size();
-        }
-
-        class ViewHolder extends RecyclerView.ViewHolder {
-            TextView name;
-            TextView pattern;
-            CheckBox checkbox;
-            ImageView dragHandle;
-
-            ViewHolder(View itemView) {
-                super(itemView);
-                name = itemView.findViewById(R.id.transformName);
-                pattern = itemView.findViewById(R.id.transformPattern);
-                checkbox = itemView.findViewById(R.id.transformCheckbox);
-                dragHandle = itemView.findViewById(R.id.dragHandle);
-            }
-        }
-    }
-
-    /**
-     * Adapter for query parameter list.
-     * Shows parameters with strikethrough when not kept, and (+) button to add removal transform.
+     * Adapter for unified parameter list.
+     * Shows kept params with values, removed params with transform name (reason).
+     * Tapping a row opens the action dialog.
      */
     private class QueryParamAdapter extends RecyclerView.Adapter<QueryParamAdapter.ViewHolder> {
 
@@ -636,39 +465,45 @@ public class ProcessingActivity extends AppCompatActivity {
         public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
             UrlProcessor.QueryParam param = queryParams.get(position);
 
-            // Show name and value
+            // Show param name
             holder.name.setText(param.name);
-            holder.value.setText(param.value);
 
-            // Strikethrough for params that will be removed
-            if (!param.keep) {
-                holder.name.setPaintFlags(holder.name.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
-                holder.value.setPaintFlags(holder.value.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
-                holder.name.setTextColor(ContextCompat.getColor(ProcessingActivity.this, android.R.color.darker_gray));
-                // Show cog button for unchecked params to add removal regex
-                holder.addTransformBtn.setVisibility(View.VISIBLE);
-            } else {
+            if (param.keep) {
+                // Kept param: show value, no strikethrough
+                holder.value.setText(param.value);
                 holder.name.setPaintFlags(holder.name.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
                 holder.value.setPaintFlags(holder.value.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
                 holder.name.setTextColor(ContextCompat.getColor(ProcessingActivity.this, R.color.text_dark));
-                holder.addTransformBtn.setVisibility(View.GONE);
+                holder.value.setTextColor(ContextCompat.getColor(ProcessingActivity.this, android.R.color.secondary_text_light));
+            } else {
+                // Removed param: show reason (transform name) instead of value
+                if (param.removedBy != null) {
+                    holder.value.setText(param.removedBy);
+                } else {
+                    holder.value.setText(R.string.removed_by_user);
+                }
+                holder.name.setPaintFlags(holder.name.getPaintFlags() | Paint.STRIKE_THRU_TEXT_FLAG);
+                holder.value.setPaintFlags(holder.value.getPaintFlags() & ~Paint.STRIKE_THRU_TEXT_FLAG);
+                holder.name.setTextColor(ContextCompat.getColor(ProcessingActivity.this, android.R.color.darker_gray));
+                holder.value.setTextColor(ContextCompat.getColor(ProcessingActivity.this, android.R.color.darker_gray));
             }
 
             // Checkbox for keep/remove
             holder.checkbox.setOnCheckedChangeListener(null);
             holder.checkbox.setChecked(param.keep);
             holder.checkbox.setOnCheckedChangeListener((buttonView, isChecked) -> {
-                param.keep = isChecked;
                 if (isChecked) {
+                    userRestoredParams.add(param.name);
                     userRemovedParams.remove(param.name);
                 } else {
                     userRemovedParams.add(param.name);
+                    userRestoredParams.remove(param.name);
                 }
                 processUrl();
             });
 
-            // Add transform button click
-            holder.addTransformBtn.setOnClickListener(v -> showAddParamRemovalTransform(param));
+            // Tap row to show action dialog
+            holder.itemView.setOnClickListener(v -> showParamActionDialog(param));
         }
 
         @Override
@@ -680,14 +515,12 @@ public class ProcessingActivity extends AppCompatActivity {
             TextView name;
             TextView value;
             CheckBox checkbox;
-            ImageButton addTransformBtn;
 
             ViewHolder(View itemView) {
                 super(itemView);
                 name = itemView.findViewById(R.id.paramName);
                 value = itemView.findViewById(R.id.paramValue);
                 checkbox = itemView.findViewById(R.id.paramCheckbox);
-                addTransformBtn = itemView.findViewById(R.id.addTransformBtn);
             }
         }
     }

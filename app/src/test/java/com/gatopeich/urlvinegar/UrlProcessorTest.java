@@ -241,4 +241,64 @@ public class UrlProcessorTest {
     public void testLooksLikeUrl_urlNotAtStart() {
         assertFalse(UrlProcessor.looksLikeUrl("see http://example.com"));
     }
+
+    @Test
+    public void testParseParamsWithTracking_removedByTransform() {
+        List<Transform> transforms = new ArrayList<>();
+        transforms.add(new Transform("Remove UTM", "[?&](utm_[a-z_]+)=[^&]*", "", true));
+        transforms.add(new Transform("Clean query", "(\\?)&+|&+(?=&)|&+$", "$1", true));
+
+        String originalUrl = "https://example.com/page?id=123&utm_source=test&utm_medium=email";
+        UrlProcessor.ProcessResult result = UrlProcessor.applyTransforms(originalUrl, transforms, null);
+
+        Set<String> userRemoved = new HashSet<>();
+        List<UrlProcessor.QueryParam> params = UrlProcessor.parseParamsWithTracking(
+            originalUrl, result.url, transforms, null, userRemoved);
+
+        // id should be kept
+        assertEquals("id", params.get(0).name);
+        assertTrue(params.get(0).keep);
+        assertNull(params.get(0).removedBy);
+
+        // utm_source should be removed by "Remove UTM"
+        assertEquals("utm_source", params.get(1).name);
+        assertFalse(params.get(1).keep);
+        assertEquals("Remove UTM", params.get(1).removedBy);
+
+        // utm_medium should be removed by "Remove UTM"
+        assertEquals("utm_medium", params.get(2).name);
+        assertFalse(params.get(2).keep);
+        assertEquals("Remove UTM", params.get(2).removedBy);
+    }
+
+    @Test
+    public void testParseParamsWithTracking_userRemovedParam() {
+        List<Transform> transforms = new ArrayList<>();
+        String originalUrl = "https://example.com?id=123&ref=abc";
+        UrlProcessor.ProcessResult result = UrlProcessor.applyTransforms(originalUrl, transforms, null);
+
+        Set<String> userRemoved = new HashSet<>();
+        userRemoved.add("ref");
+
+        List<UrlProcessor.QueryParam> params = UrlProcessor.parseParamsWithTracking(
+            originalUrl, result.url, transforms, null, userRemoved);
+
+        assertEquals(2, params.size());
+        assertTrue(params.get(0).keep); // id kept
+        assertFalse(params.get(1).keep); // ref removed by user
+        assertNull(params.get(1).removedBy); // no transform, removed by user
+    }
+
+    @Test
+    public void testParseParamsWithTracking_noParams() {
+        List<Transform> transforms = new ArrayList<>();
+        String originalUrl = "https://example.com/page";
+        UrlProcessor.ProcessResult result = UrlProcessor.applyTransforms(originalUrl, transforms, null);
+
+        Set<String> userRemoved = new HashSet<>();
+        List<UrlProcessor.QueryParam> params = UrlProcessor.parseParamsWithTracking(
+            originalUrl, result.url, transforms, null, userRemoved);
+
+        assertEquals(0, params.size());
+    }
 }
