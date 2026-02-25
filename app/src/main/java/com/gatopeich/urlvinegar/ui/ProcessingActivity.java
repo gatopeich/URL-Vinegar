@@ -169,9 +169,9 @@ public class ProcessingActivity extends AppCompatActivity {
         
         String transformedUrl = result.url;
 
-        // Parse params with tracking: compares original vs transformed to find removals
+        // Parse params with step-by-step tracking through transforms
         queryParams = UrlProcessor.parseParamsWithTracking(
-            originalUrl, transformedUrl, transforms, null, userRemovedParams);
+            originalUrl, transforms, null, userRemovedParams);
 
         // Apply user overrides: if user restored a param that was removed by transform, mark as keep
         for (UrlProcessor.QueryParam p : queryParams) {
@@ -378,61 +378,69 @@ public class ProcessingActivity extends AppCompatActivity {
 
     /**
      * Show dialog when a parameter is tapped.
+     * Uses styled Material buttons instead of plain text items.
      * For kept params: offer to deny (one time) or add removal regex (config).
      * For removed params: offer to allow (one time) or edit/remove the regex (config).
      */
     private void showParamActionDialog(UrlProcessor.QueryParam param) {
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(48, 32, 48, 16);
+
+        AlertDialog dialog = new AlertDialog.Builder(this)
+            .setTitle(param.name)
+            .setView(layout)
+            .setNegativeButton(R.string.cancel, null)
+            .create();
+
         if (param.keep) {
             // Param is currently kept - offer to remove
-            new AlertDialog.Builder(this)
-                .setTitle(param.name)
-                .setItems(new CharSequence[]{
-                    getString(R.string.remove_this_time),
-                    getString(R.string.add_removal_regex)
-                }, (dialog, which) -> {
-                    switch (which) {
-                        case 0: // Remove this time only
-                            userRemovedParams.add(param.name);
-                            userRestoredParams.remove(param.name);
-                            processUrl();
-                            break;
-                        case 1: // Add removal regex to config
-                            showAddParamRemovalTransform(param);
-                            break;
-                    }
-                })
-                .setNegativeButton(R.string.cancel, null)
-                .show();
+            addStyledButton(layout, getString(R.string.remove_this_time), v -> {
+                userRemovedParams.add(param.name);
+                userRestoredParams.remove(param.name);
+                processUrl();
+                dialog.dismiss();
+            });
+            addStyledButton(layout, getString(R.string.add_removal_regex), v -> {
+                showAddParamRemovalTransform(param);
+                dialog.dismiss();
+            });
         } else {
             // Param is currently removed - offer to allow
-            CharSequence[] items;
+            addStyledButton(layout, getString(R.string.allow_this_time), v -> {
+                userRestoredParams.add(param.name);
+                userRemovedParams.remove(param.name);
+                processUrl();
+                dialog.dismiss();
+            });
             if (param.removedBy != null) {
-                items = new CharSequence[]{
-                    getString(R.string.allow_this_time),
-                    getString(R.string.edit_removal_regex, param.removedBy)
-                };
-            } else {
-                items = new CharSequence[]{
-                    getString(R.string.allow_this_time)
-                };
+                addStyledButton(layout, getString(R.string.edit_removal_regex, param.removedBy), v -> {
+                    openSettings();
+                    dialog.dismiss();
+                });
             }
-            new AlertDialog.Builder(this)
-                .setTitle(param.name)
-                .setItems(items, (dialog, which) -> {
-                    switch (which) {
-                        case 0: // Allow this time
-                            userRestoredParams.add(param.name);
-                            userRemovedParams.remove(param.name);
-                            processUrl();
-                            break;
-                        case 1: // Edit the regex in config
-                            openSettings();
-                            break;
-                    }
-                })
-                .setNegativeButton(R.string.cancel, null)
-                .show();
         }
+
+        dialog.show();
+    }
+
+    /**
+     * Add a styled Material button to a LinearLayout container.
+     */
+    private void addStyledButton(LinearLayout container, String text, View.OnClickListener listener) {
+        Button button = new Button(this);
+        button.setText(text);
+        button.setAllCaps(false);
+        button.setTextColor(ContextCompat.getColor(this, R.color.primary));
+        button.setBackgroundResource(android.R.drawable.dialog_holo_light_frame);
+        button.setPadding(32, 24, 32, 24);
+        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+            LinearLayout.LayoutParams.MATCH_PARENT,
+            LinearLayout.LayoutParams.WRAP_CONTENT);
+        lp.setMargins(0, 8, 0, 8);
+        button.setLayoutParams(lp);
+        button.setOnClickListener(listener);
+        container.addView(button);
     }
 
     /**

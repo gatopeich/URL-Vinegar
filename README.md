@@ -41,27 +41,29 @@ C-lean and mean-ingful URL cleaner and shortener
 - The dialog MUST have a prominent Share button directly below the URL preview.
 - Settings button MUST be in the top right corner.
 
-### 3.2 Transform List
-- The dialog MUST display only transforms that match the current URL.
-- Each transform MUST show its name and pattern.
-- Non-matching transforms MUST NOT be displayed.
-- Matching transforms MUST have a checkbox to enable or disable them.
-- Enabled transforms MUST be checked by default according to their stored enabled state.
-- (+) button MUST be available to add new transforms.
+### 3.2 Parameter List
+- The dialog MUST display all query parameters from the original URL.
+- Parameters kept after transform processing MUST be listed first, followed by removed parameters.
+- Kept parameters MUST show their name and value.
+- Removed parameters MUST show their name and the name of the transform that removed them.
+- Each parameter MUST have a checkbox to toggle keep/remove.
+- Kept parameters MUST be checked by default.
+- Parameters removed by transforms MUST be unchecked by default.
+- Parameters removed by transforms MUST show strikethrough text.
 
-### 3.3 Transform Ordering
-- Transforms MUST be applied in the order displayed.
-- The user MUST be able to reorder transforms using drag handles.
-- Drag handles MUST be present on each transform item.
-- When the user reorders transforms, the new order MUST be persisted to configuration.
+### 3.3 Parameter Tracking
+- The application MUST step through transforms one-by-one to determine which transform removed each parameter.
+- Each removed parameter MUST be attributed to the specific transform that removed it.
+- Parameters that survive all transforms MUST be treated as kept.
 
-### 3.4 Transform Toggling
-- When the user disables a transform that is enabled in configuration, the application MUST prompt the user with options:
-  - "This URL only" — MUST disable the transform for the current URL without modifying configuration.
-  - "Disable in config" — MUST update the configuration to disable this transform by default.
-  - "Delete from config" — MUST remove the transform from configuration entirely.
-- When the user enables a previously disabled transform, the application SHALL apply it without prompting.
-- Disabled transforms MUST be shown with strikethrough text.
+### 3.4 Parameter Actions
+- Tapping any parameter MUST open an action dialog with clearly styled buttons.
+- For kept parameters, the dialog MUST offer:
+  - "Remove this time" — removes the parameter for the current URL only.
+  - "Add removal regex…" — opens the add transform dialog pre-filled with a removal pattern.
+- For removed parameters, the dialog MUST offer:
+  - "Allow this time" — restores the parameter for the current URL only.
+  - "Edit regex: {transform name}…" — opens the configuration activity to edit the responsible transform.
 
 ### 3.5 Adding Transforms
 - The dialog MUST provide a (+) button to add a new transform.
@@ -73,20 +75,14 @@ C-lean and mean-ingful URL cleaner and shortener
 - After adding a transform, the application MUST ask whether to save it to configuration.
 - If the user chooses "This time only", the transform applies only to current URL.
 
-### 3.6 Query Parameter List
-- The dialog MUST display all query parameters present in the URL (after transform application).
-- Each parameter MUST show its name and value.
-- Each parameter MUST have a checkbox indicating whether it will be kept.
-- All parameters MUST be unchecked (removed) by default.
-- Parameters being removed MUST be shown with strikethrough text.
-- Each unchecked parameter MUST have a (+) button to create a removal transform.
+### 3.6 Query Parameter Display
+- The parameter list section header MUST say "Query Parameters".
+- The settings button (⚙) in the top right provides full configuration access.
 
-### 3.7 Query Parameter Actions
+### 3.7 Query Parameter Checkbox Behavior
 - Checking a parameter MUST immediately keep it in the cleaned URL.
 - Unchecking a parameter MUST immediately remove it from the cleaned URL.
-- The (+) button beside an unchecked parameter MUST open the add transform dialog pre-filled with:
-  - Name: "Remove {param} ({domain})"
-  - Pattern: regex to remove that specific parameter
+- The URL preview MUST update in real-time when checkboxes are toggled.
 
 ### 3.8 Dialog Actions
 - The dialog MUST provide a prominent "Share" button that shares the cleaned URL.
@@ -180,14 +176,15 @@ C-lean and mean-ingful URL cleaner and shortener
 - The icon MUST include a cleaning cloth element.
 
 ### 7.3 Visual Feedback
-- Disabled transforms MUST use strikethrough text.
 - Removed query parameters MUST use strikethrough text.
+- Removed query parameters MUST show the name of the transform that removed them.
+- Kept query parameters MUST show their value.
 - The URL preview MUST update immediately when selections change.
 - Invalid regex patterns MUST be highlighted in red.
 
-### 7.4 Drag Handles
-- Drag handles MUST be present for reordering transforms.
-- Drag handles SHOULD be easily recognizable (e.g., grip icon).
+### 7.4 Parameter Action Buttons
+- Action dialogs for parameters MUST use clearly styled buttons.
+- Buttons MUST be visually distinct from plain text.
 
 ---
 

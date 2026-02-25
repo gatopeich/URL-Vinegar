@@ -249,13 +249,15 @@ public class UrlProcessorTest {
         transforms.add(new Transform("Clean query", "(\\?)&+|&+(?=&)|&+$", "$1", true));
 
         String originalUrl = "https://example.com/page?id=123&utm_source=test&utm_medium=email";
-        UrlProcessor.ProcessResult result = UrlProcessor.applyTransforms(originalUrl, transforms, null);
 
         Set<String> userRemoved = new HashSet<>();
         List<UrlProcessor.QueryParam> params = UrlProcessor.parseParamsWithTracking(
-            originalUrl, result.url, transforms, null, userRemoved);
+            originalUrl, transforms, null, userRemoved);
 
-        // id should be kept
+        // Kept params come first (id), then removed params (utm_source, utm_medium)
+        assertEquals(3, params.size());
+
+        // id should be kept (first, since kept comes first)
         assertEquals("id", params.get(0).name);
         assertTrue(params.get(0).keep);
         assertNull(params.get(0).removedBy);
@@ -275,17 +277,20 @@ public class UrlProcessorTest {
     public void testParseParamsWithTracking_userRemovedParam() {
         List<Transform> transforms = new ArrayList<>();
         String originalUrl = "https://example.com?id=123&ref=abc";
-        UrlProcessor.ProcessResult result = UrlProcessor.applyTransforms(originalUrl, transforms, null);
 
         Set<String> userRemoved = new HashSet<>();
         userRemoved.add("ref");
 
         List<UrlProcessor.QueryParam> params = UrlProcessor.parseParamsWithTracking(
-            originalUrl, result.url, transforms, null, userRemoved);
+            originalUrl, transforms, null, userRemoved);
 
         assertEquals(2, params.size());
-        assertTrue(params.get(0).keep); // id kept
-        assertFalse(params.get(1).keep); // ref removed by user
+        // id kept
+        assertEquals("id", params.get(0).name);
+        assertTrue(params.get(0).keep);
+        // ref removed by user (no transform)
+        assertEquals("ref", params.get(1).name);
+        assertFalse(params.get(1).keep);
         assertNull(params.get(1).removedBy); // no transform, removed by user
     }
 
@@ -293,12 +298,83 @@ public class UrlProcessorTest {
     public void testParseParamsWithTracking_noParams() {
         List<Transform> transforms = new ArrayList<>();
         String originalUrl = "https://example.com/page";
-        UrlProcessor.ProcessResult result = UrlProcessor.applyTransforms(originalUrl, transforms, null);
 
         Set<String> userRemoved = new HashSet<>();
         List<UrlProcessor.QueryParam> params = UrlProcessor.parseParamsWithTracking(
-            originalUrl, result.url, transforms, null, userRemoved);
+            originalUrl, transforms, null, userRemoved);
 
         assertEquals(0, params.size());
+    }
+
+    @Test
+    public void testParseParamsWithTracking_stepByStepAccuracy() {
+        // Regression: "goal" param should NOT be attributed to "Remove UTM parameters"
+        List<Transform> transforms = new ArrayList<>();
+        transforms.add(new Transform("Remove UTM parameters", "[?&](utm_[a-z_]+)=[^&]*", "", true));
+        transforms.add(new Transform("Remove affiliate tracking", "[?&](ref|aff|affiliate|campaign|source|medium)=[^&]*", "", true));
+        transforms.add(new Transform("Clean up query string", "(\\?)&+|&+(?=&)|&+$", "$1", true));
+        transforms.add(new Transform("Remove empty query string", "\\?$", "", true));
+
+        String originalUrl = "https://example.com/page?goal=signup&utm_source=twitter&ref=partner1&id=42";
+
+        Set<String> userRemoved = new HashSet<>();
+        List<UrlProcessor.QueryParam> params = UrlProcessor.parseParamsWithTracking(
+            originalUrl, transforms, null, userRemoved);
+
+        // Should have 4 params total
+        assertEquals(4, params.size());
+
+        // Kept params come first: "goal" and "id" should be kept
+        UrlProcessor.QueryParam goalParam = null;
+        UrlProcessor.QueryParam idParam = null;
+        UrlProcessor.QueryParam utmParam = null;
+        UrlProcessor.QueryParam refParam = null;
+        for (UrlProcessor.QueryParam p : params) {
+            if ("goal".equals(p.name)) goalParam = p;
+            else if ("id".equals(p.name)) idParam = p;
+            else if ("utm_source".equals(p.name)) utmParam = p;
+            else if ("ref".equals(p.name)) refParam = p;
+        }
+
+        // "goal" should be kept, NOT removed
+        assertNotNull(goalParam);
+        assertTrue(goalParam.keep);
+        assertNull(goalParam.removedBy);
+
+        // "id" should be kept
+        assertNotNull(idParam);
+        assertTrue(idParam.keep);
+        assertNull(idParam.removedBy);
+
+        // "utm_source" removed by "Remove UTM parameters"
+        assertNotNull(utmParam);
+        assertFalse(utmParam.keep);
+        assertEquals("Remove UTM parameters", utmParam.removedBy);
+
+        // "ref" removed by "Remove affiliate tracking"
+        assertNotNull(refParam);
+        assertFalse(refParam.keep);
+        assertEquals("Remove affiliate tracking", refParam.removedBy);
+    }
+
+    @Test
+    public void testParseParamsWithTracking_keptBeforeRemoved() {
+        // Verify ordering: kept params first, then removed params
+        List<Transform> transforms = new ArrayList<>();
+        transforms.add(new Transform("Remove UTM", "[?&](utm_[a-z_]+)=[^&]*", "", true));
+
+        String originalUrl = "https://example.com?utm_source=test&id=123&utm_medium=email&page=2";
+
+        Set<String> userRemoved = new HashSet<>();
+        List<UrlProcessor.QueryParam> params = UrlProcessor.parseParamsWithTracking(
+            originalUrl, transforms, null, userRemoved);
+
+        assertEquals(4, params.size());
+        // First two should be kept params (id and page)
+        assertTrue(params.get(0).keep);
+        assertTrue(params.get(1).keep);
+        // Last two should be removed params (utm_source and utm_medium)
+        assertFalse(params.get(2).keep);
+        assertFalse(params.get(3).keep);
     }
 }
