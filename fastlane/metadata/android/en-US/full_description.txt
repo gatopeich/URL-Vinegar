@@ -1,0 +1,17 @@
+URL Vinegar cleans up URLs by removing tracking parameters and shortening links before you share them.
+
+Features:
+* One-tap sharing — Prominent Share button for quick cleaned URL sharing.
+* YouTube URL shortener — Converts youtube.com/watch?v=xxx to youtu.be/xxx (preserves timestamps).
+* Tracking removal — Removes UTM, fbclid, gclid, and other tracking parameters.
+* Transform-based cleaning — Regex transforms for flexible URL manipulation.
+* Real-time preview — See the cleaned URL update as you toggle options.
+* No permissions required — URL Vinegar does not need any permissions.
+* Tiny footprint — Release APK is under 2 MB.
+
+How it works:
+1. Share a URL to URL Vinegar from any app, or select it as your browser handler.
+2. Review the cleaned URL and toggle transforms or query parameters as needed.
+3. Tap Share to send the cleaned URL to another app, or Copy to clipboard.
+
+URL Vinegar ships with default transforms for YouTube shortening, UTM parameter removal, Facebook click ID, Google click ID, Amazon referral tags, and generic affiliate tracking. You can add, edit, reorder, and delete transforms to suit your needs.
