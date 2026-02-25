@@ -163,13 +163,7 @@ public class ProcessingActivity extends AppCompatActivity {
     }
 
     private void processUrl() {
-        // Apply transforms
-        UrlProcessor.ProcessResult result = UrlProcessor.applyTransforms(
-            originalUrl, transforms, null);
-        
-        String transformedUrl = result.url;
-
-        // Parse params with step-by-step tracking through transforms
+        // Parse params from original URL, track which transform removed each
         queryParams = UrlProcessor.parseParamsWithTracking(
             originalUrl, transforms, null, userRemovedParams);
 
@@ -180,11 +174,15 @@ public class ProcessingActivity extends AppCompatActivity {
             }
         }
 
-        // Reconstruct URL with filtered parameters using the transformed URL as base
-        currentUrl = UrlProcessor.reconstructUrl(transformedUrl, queryParams);
+        // Reconstruct URL from original base + kept params only.
+        // We use originalUrl (not transform output) as the base to avoid
+        // params getting duplicated when transforms remove the '?' separator.
+        currentUrl = UrlProcessor.reconstructUrl(originalUrl, queryParams);
         
         // Update UI
-        updatePreview(result);
+        urlPreview.setText(currentUrl);
+        urlPreview.setTextColor(ContextCompat.getColor(this, R.color.text_dark));
+        findViewById(R.id.shareButton).setEnabled(true);
         updateSectionVisibility();
         paramAdapter.notifyDataSetChanged();
     }
@@ -198,22 +196,6 @@ public class ProcessingActivity extends AppCompatActivity {
             paramsSection.setVisibility(View.GONE);
         } else {
             paramsSection.setVisibility(View.VISIBLE);
-        }
-    }
-
-    /**
-     * Requirement 3.1: Show preview of cleaned URL
-     * Requirement 4.3: URL Reconstruction - Invalid scheme should be red
-     */
-    private void updatePreview(UrlProcessor.ProcessResult result) {
-        urlPreview.setText(currentUrl);
-        
-        if (!result.isValid) {
-            urlPreview.setTextColor(Color.RED);
-            findViewById(R.id.shareButton).setEnabled(false);
-        } else {
-            urlPreview.setTextColor(ContextCompat.getColor(this, R.color.text_dark));
-            findViewById(R.id.shareButton).setEnabled(true);
         }
     }
 

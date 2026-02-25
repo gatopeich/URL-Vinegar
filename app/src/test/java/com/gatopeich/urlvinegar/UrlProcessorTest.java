@@ -377,4 +377,59 @@ public class UrlProcessorTest {
         assertFalse(params.get(2).keep);
         assertFalse(params.get(3).keep);
     }
+
+    @Test
+    public void testReconstructUrl_noDuplicationAfterTransformRemovesQuestionMark() {
+        // Regression test: When transforms remove the '?' separator (e.g. removing
+        // utm_source=xxx from ?utm_source=xxx&goal=yyy), surviving params must NOT
+        // be duplicated in the result URL.
+        // The fix: always reconstruct from the original URL, not the transform output.
+        List<Transform> transforms = new ArrayList<>();
+        transforms.add(new Transform("Remove UTM", "[?&](utm_[a-z_]+)=[^&]*", "", true));
+        transforms.add(new Transform("Clean query", "(\\?)&+|&+(?=&)|&+$", "$1", true));
+        transforms.add(new Transform("Remove empty query", "\\?$", "", true));
+
+        String originalUrl = "https://www.eldiario.es/sociedad/article.html?utm_source=newsletter&goal=0_abc&mc_cid=1e44fb";
+
+        // Parse params with tracking
+        Set<String> userRemoved = new HashSet<>();
+        List<UrlProcessor.QueryParam> params = UrlProcessor.parseParamsWithTracking(
+            originalUrl, transforms, null, userRemoved);
+
+        // goal and mc_cid should be kept, utm_source should be removed
+        assertEquals(3, params.size());
+
+        UrlProcessor.QueryParam goalParam = null;
+        UrlProcessor.QueryParam mcParam = null;
+        for (UrlProcessor.QueryParam p : params) {
+            if ("goal".equals(p.name)) goalParam = p;
+            if ("mc_cid".equals(p.name)) mcParam = p;
+        }
+        assertNotNull(goalParam);
+        assertTrue(goalParam.keep);
+        assertNotNull(mcParam);
+        assertTrue(mcParam.keep);
+
+        // Reconstruct from ORIGINAL URL (not transform output) to avoid duplication
+        String result = UrlProcessor.reconstructUrl(originalUrl, params);
+
+        // The result must NOT contain params before the '?'
+        // i.e., no ".html&goal=" pattern
+        assertFalse("Params should not appear in path before '?'",
+            result.contains(".html&goal"));
+
+        // Should have exactly one '?'
+        int questionMarks = 0;
+        for (char c : result.toCharArray()) {
+            if (c == '?') questionMarks++;
+        }
+        assertEquals("URL should have exactly one '?'", 1, questionMarks);
+
+        // Should have goal and mc_cid as proper query params
+        assertTrue(result.contains("?goal=0_abc") || result.contains("&goal=0_abc"));
+        assertTrue(result.contains("&mc_cid=1e44fb") || result.contains("?mc_cid=1e44fb"));
+
+        // Should NOT contain utm_source (it was removed by transform)
+        assertFalse(result.contains("utm_source"));
+    }
 }
