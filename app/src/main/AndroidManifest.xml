@@ -46,6 +46,19 @@
             </intent-filter>
         </activity>
 
+        <!-- Activity alias for text selection handler: "Apply URL Vinegar" -->
+        <activity-alias
+            android:name=".ui.ProcessTextActivity"
+            android:targetActivity=".ui.ProcessingActivity"
+            android:exported="true"
+            android:label="@string/apply_url_vinegar">
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity-alias>
+
     </application>
 
 </manifest>

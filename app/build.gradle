@@ -17,15 +17,16 @@ def getVersionCode = { ->
 }
 
 def getVersionName = { ->
+    def dateSuffix = new java.text.SimpleDateFormat("yyyyMMdd").format(new Date())
     try {
         def stdout = new ByteArrayOutputStream()
         exec {
             commandLine 'git', 'describe', '--tags', '--always'
             standardOutput = stdout
         }
-        return stdout.toString().trim()
+        return stdout.toString().trim() + "." + dateSuffix
     } catch (ignored) {
-        return "1.0.0"
+        return "1.0.0." + dateSuffix
     }
 }
 

@@ -51,49 +51,6 @@
         android:backgroundTint="@color/primary"
         android:padding="12dp" />
 
-    <!-- Transforms Section -->
-    <LinearLayout
-        android:id="@+id/transformsSection"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:layout_marginTop="16dp"
-        android:visibility="gone">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="center_vertical">
-
-            <TextView
-                android:layout_width="0dp"
-                android:layout_height="wrap_content"
-                android:layout_weight="1"
-                android:text="@string/transforms"
-                android:textStyle="bold"
-                android:textColor="@color/text_dark" />
-
-            <ImageButton
-                android:id="@+id/addTransformButton"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:src="@drawable/ic_add"
-                android:contentDescription="@string/add_transform"
-                android:background="?attr/selectableItemBackgroundBorderless"
-                android:tint="@color/primary" />
-
-        </LinearLayout>
-
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/transformsRecyclerView"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:maxHeight="150dp"
-            android:nestedScrollingEnabled="false" />
-
-    </LinearLayout>
-
     <!-- Query Parameters Section -->
     <LinearLayout
         android:id="@+id/paramsSection"
