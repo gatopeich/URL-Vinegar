@@ -45,6 +45,22 @@ public class UrlProcessorTest {
     }
 
     @Test
+    public void testExtractUrl_selectedTextWithUrl() {
+        // Simulates text selected via ACTION_PROCESS_TEXT
+        String text = "https://example.com/article?utm_source=twitter&id=42";
+        String result = UrlProcessor.extractUrl(text);
+        assertEquals("https://example.com/article?utm_source=twitter&id=42", result);
+    }
+
+    @Test
+    public void testExtractUrl_selectedTextNonUrl() {
+        // Non-URL text selected via ACTION_PROCESS_TEXT should return null
+        String text = "just some selected words";
+        String result = UrlProcessor.extractUrl(text);
+        assertNull(result);
+    }
+
+    @Test
     public void testApplyTransforms_removeUtmParams() {
         List<Transform> transforms = new ArrayList<>();
         // UTM removal transform

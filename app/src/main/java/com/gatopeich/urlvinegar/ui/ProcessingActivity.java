@@ -60,6 +60,7 @@ public class ProcessingActivity extends AppCompatActivity {
     private String originalUrl;
     private String currentUrl;
     private String urlHost;
+    private boolean isProcessText; // Track if invoked via ACTION_PROCESS_TEXT
 
     private TextView urlPreview;
     private RecyclerView transformsRecyclerView;
@@ -125,6 +126,15 @@ public class ProcessingActivity extends AppCompatActivity {
         if (Intent.ACTION_SEND.equals(action)) {
             String text = intent.getStringExtra(Intent.EXTRA_TEXT);
             return UrlProcessor.extractUrl(text);
+        }
+
+        // ACTION_PROCESS_TEXT - Text selection toolbar
+        if (Intent.ACTION_PROCESS_TEXT.equals(action)) {
+            isProcessText = true;
+            CharSequence text = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT);
+            if (text != null) {
+                return UrlProcessor.extractUrl(text.toString());
+            }
         }
         
         return null;
@@ -288,6 +298,15 @@ public class ProcessingActivity extends AppCompatActivity {
      * Requirement 6.1: Share Intent
      */
     private void shareUrl() {
+        // If invoked via PROCESS_TEXT, return cleaned URL to the calling app
+        if (isProcessText) {
+            Intent resultIntent = new Intent();
+            resultIntent.putExtra(Intent.EXTRA_PROCESS_TEXT, currentUrl);
+            setResult(RESULT_OK, resultIntent);
+            finish();
+            return;
+        }
+
         Intent shareIntent = new Intent(Intent.ACTION_SEND);
         shareIntent.setType("text/plain");
         shareIntent.putExtra(Intent.EXTRA_TEXT, currentUrl);
