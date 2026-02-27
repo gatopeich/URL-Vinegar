@@ -2,32 +2,17 @@ plugins {
     id 'com.android.application'
 }
 
-// Get version from git tags
-def getVersionCode = { ->
-    try {
-        def stdout = new ByteArrayOutputStream()
-        exec {
-            commandLine 'git', 'rev-list', '--count', 'HEAD'
-            standardOutput = stdout
-        }
-        return Integer.parseInt(stdout.toString().trim())
-    } catch (ignored) {
-        return 1
-    }
-}
+// UTC seconds since repo creation (2026-02-04T07:03:56Z), fits int32 until ~2094
+def buildSeconds = (int) ((System.currentTimeMillis() - 1770188636000L) / 1000)
 
 def getVersionName = { ->
-    def dateSuffix = new java.text.SimpleDateFormat("yyyyMMdd").format(new Date())
-    try {
-        def stdout = new ByteArrayOutputStream()
-        exec {
-            commandLine 'git', 'describe', '--tags', '--always'
-            standardOutput = stdout
-        }
-        return stdout.toString().trim() + "." + dateSuffix
-    } catch (ignored) {
-        return "1.0.0." + dateSuffix
+    def tag = project.findProperty("RELEASE_TAG") ?: System.getenv("RELEASE_TAG") ?: "v0.0"
+    def version = tag + "." + buildSeconds
+    def prNumber = project.findProperty("PR_NUMBER") ?: System.getenv("PR_NUMBER")
+    if (prNumber) {
+        version += ".PR" + prNumber
     }
+    return version
 }
 
 android {
@@ -38,7 +23,7 @@ android {
         applicationId "com.gatopeich.urlvinegar"
         minSdk 21
         targetSdk 34
-        versionCode getVersionCode()
+        versionCode buildSeconds
         versionName getVersionName()
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
