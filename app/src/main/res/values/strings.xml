@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">URL Vinegar</string>
+    <string name="config_title">URL Vinegar Configuration</string>
     <string name="app_description">Clean and meaningful URL cleaner and shortener</string>
     
     <!-- Actions -->
