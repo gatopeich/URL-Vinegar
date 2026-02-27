@@ -1,0 +1,8 @@
+# GitHub Copilot Coding Agent – allowed network domains
+# These domains are needed for referencing documentation and style guides.
+allowed:
+  - "*.github.io"       # GitHub Pages (style guides, project docs)
+  - "gh.io"             # GitHub short-links / Pages aliases
+  - "developer.android.com"  # Android developer documentation
+  - "d.android.com"     # Android developer doc redirect alias
+  - "source.android.com"     # AOSP source docs
