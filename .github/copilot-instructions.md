@@ -14,7 +14,7 @@ Requires JDK 17. Gradle wrapper is included.
 ./gradlew test             # Unit tests (JUnit 4)
 ```
 
-The CI workflow (`.github/workflows/build.yml`) runs `assembleRelease` then `test` on every push/PR to main/master.
+The CI workflow (`.github/workflows/build.yml`) runs `assembleRelease testReleaseUnitTest` in a single Gradle invocation on every push/PR to main/master.
 
 Always run `./gradlew test` before submitting changes.
 
