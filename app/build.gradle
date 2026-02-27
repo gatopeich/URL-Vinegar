@@ -17,17 +17,23 @@ def getVersionCode = { ->
 }
 
 def getVersionName = { ->
-    def dateSuffix = new java.text.SimpleDateFormat("yyyyMMdd").format(new Date())
+    def dateSuffix = new java.text.SimpleDateFormat("yyMMddHHss").format(new Date())
+    def tag = "v0.0"
     try {
         def stdout = new ByteArrayOutputStream()
         exec {
-            commandLine 'git', 'describe', '--tags', '--always'
+            commandLine 'git', 'describe', '--tags', '--abbrev=0'
             standardOutput = stdout
         }
-        return stdout.toString().trim() + "." + dateSuffix
+        tag = stdout.toString().trim()
     } catch (ignored) {
-        return "1.0.0." + dateSuffix
     }
+    def version = tag + "." + dateSuffix
+    def prNumber = project.findProperty("PR_NUMBER") ?: System.getenv("PR_NUMBER")
+    if (prNumber) {
+        version += ".PR" + prNumber
+    }
+    return version
 }
 
 android {
