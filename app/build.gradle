@@ -2,8 +2,12 @@ plugins {
     id 'com.android.application'
 }
 
-// Get version from git tags
+// Get version from CI env vars, falling back to git for local/F-Droid builds
 def getVersionCode = { ->
+    def envCode = project.findProperty("VERSION_CODE") ?: System.getenv("VERSION_CODE")
+    if (envCode) {
+        return Integer.parseInt(envCode.toString().trim())
+    }
     try {
         def stdout = new ByteArrayOutputStream()
         exec {
@@ -19,15 +23,23 @@ def getVersionCode = { ->
 def getVersionName = { ->
     def tag = "v0.0"
     def dateSuffix = new java.text.SimpleDateFormat("yyMMddHHss").format(new Date())
-    try {
-        def stdout = new ByteArrayOutputStream()
-        exec {
-            commandLine 'git', 'describe', '--tags', '--abbrev=0'
-            standardOutput = stdout
+    def envTag = project.findProperty("RELEASE_TAG") ?: System.getenv("RELEASE_TAG")
+    if (envTag) {
+        tag = envTag
+    } else {
+        try {
+            def stdout = new ByteArrayOutputStream()
+            exec {
+                commandLine 'git', 'describe', '--tags', '--abbrev=0'
+                standardOutput = stdout
+            }
+            tag = stdout.toString().trim()
+        } catch (ignored) {
         }
-        tag = stdout.toString().trim()
+    }
+    try {
         // Use git commit timestamp for reproducible builds (F-Droid compatible)
-        stdout = new ByteArrayOutputStream()
+        def stdout = new ByteArrayOutputStream()
         exec {
             commandLine 'git', 'show', '-s', '--format=%ct', 'HEAD'
             standardOutput = stdout
