@@ -2,57 +2,19 @@ plugins {
     id 'com.android.application'
 }
 
-// Get version from CI env vars, falling back to git for local/F-Droid builds
+def buildTime = new Date()
+
 def getVersionCode = { ->
-    def envCode = project.findProperty("VERSION_CODE") ?: System.getenv("VERSION_CODE")
-    if (envCode) {
-        try {
-            return Integer.parseInt(envCode.toString().trim())
-        } catch (ignored) {
-        }
-    }
-    try {
-        def stdout = new ByteArrayOutputStream()
-        exec {
-            commandLine 'git', 'rev-list', '--count', 'HEAD'
-            standardOutput = stdout
-        }
-        return Integer.parseInt(stdout.toString().trim())
-    } catch (ignored) {
-        return 1
-    }
+    def sdf = new java.text.SimpleDateFormat("yyMMddHH")
+    sdf.setTimeZone(TimeZone.getTimeZone("UTC"))
+    return Integer.parseInt(sdf.format(buildTime))
 }
 
 def getVersionName = { ->
-    def tag = "v0.0"
-    def dateSuffix = new java.text.SimpleDateFormat("yyMMddHHss").format(new Date())
-    def envTag = project.findProperty("RELEASE_TAG") ?: System.getenv("RELEASE_TAG")
-    if (envTag) {
-        tag = envTag
-    } else {
-        try {
-            def stdout = new ByteArrayOutputStream()
-            exec {
-                commandLine 'git', 'describe', '--tags', '--abbrev=0'
-                standardOutput = stdout
-            }
-            tag = stdout.toString().trim()
-        } catch (ignored) {
-        }
-    }
-    try {
-        // Use git commit timestamp for reproducible builds (F-Droid compatible)
-        def stdout = new ByteArrayOutputStream()
-        exec {
-            commandLine 'git', 'show', '-s', '--format=%ct', 'HEAD'
-            standardOutput = stdout
-        }
-        def sdf = new java.text.SimpleDateFormat("yyMMddHHss")
-        sdf.setTimeZone(TimeZone.getTimeZone("UTC"))
-        dateSuffix = sdf.format(new Date(Long.parseLong(stdout.toString().trim()) * 1000))
-    } catch (ignored) {
-    }
-    def version = tag + "." + dateSuffix
+    def tag = project.findProperty("RELEASE_TAG") ?: System.getenv("RELEASE_TAG") ?: "v0.0"
+    def sdf = new java.text.SimpleDateFormat("yyMMddHHss")
+    sdf.setTimeZone(TimeZone.getTimeZone("UTC"))
+    def version = tag + "." + sdf.format(buildTime)
     def prNumber = project.findProperty("PR_NUMBER") ?: System.getenv("PR_NUMBER")
     if (prNumber) {
         version += ".PR" + prNumber

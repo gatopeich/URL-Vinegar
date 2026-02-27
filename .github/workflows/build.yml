@@ -18,22 +18,12 @@ jobs:
     - name: Checkout code
       uses: actions/checkout@v4
 
-    - name: Get version info
+    - name: Get release tag
       run: |
         RELEASE_TAG=$(gh release view --json tagName -q '.tagName' 2>/dev/null || echo "")
         echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
-        REPO_NAME="${GITHUB_REPOSITORY#*/}"
-        VERSION_CODE=$(gh api graphql \
-          -f owner="$GITHUB_REPOSITORY_OWNER" \
-          -f name="$REPO_NAME" \
-          -f sha="$VERSION_SHA" \
-          -q '.data.repository.object.history.totalCount' \
-          -f query='query($owner:String!,$name:String!,$sha:GitObjectID!){repository(owner:$owner,name:$name){object(oid:$sha){...on Commit{history{totalCount}}}}}' \
-          2>/dev/null || echo "1")
-        echo "VERSION_CODE=$VERSION_CODE" >> $GITHUB_ENV
       env:
         GH_TOKEN: ${{ github.token }}
-        VERSION_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 
     - name: Set up JDK 17
       uses: actions/setup-java@v4
