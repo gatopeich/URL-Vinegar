@@ -47,8 +47,8 @@ jobs:
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
 
-    - name: Build Release APK
-      run: ./gradlew assembleRelease
+    - name: Build Release APK and Run Unit Tests
+      run: ./gradlew assembleRelease testReleaseUnitTest
       env:
         PR_NUMBER: ${{ github.event.pull_request.number }}
 
@@ -79,6 +79,3 @@ jobs:
           --body "📦 APK built successfully! Download it from the [build artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})."
       env:
         GH_TOKEN: ${{ github.token }}
-
-    - name: Run Unit Tests
-      run: ./gradlew test
