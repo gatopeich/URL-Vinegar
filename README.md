@@ -1,15 +1,16 @@
 # URL Vinegar
-C-lean and mean-ingful URL cleaner and shortener
+Small customizable URL cleaner.
 
 ## Features
-- **One-tap sharing** - Prominent Share button for quick cleaned URL sharing
+- **Privacy** - Removes UTM, fbclid, gclid, and other tracking parameters
+- **Real-time preview** - See cleaned URL update as you toggle parameters in or out
+- **One-click operation** - Prominent Share button for quick cleaned URL sharing
+- **Minimal size** - 3.4 MB used in Android storage
 - **YouTube URL shortener** - Converts `youtube.com/watch?v=xxx` to `youtu.be/xxx` (preserves timestamps)
-- **Tracking removal** - Removes UTM, fbclid, gclid, and other tracking parameters
-- **Transform-based cleaning** - Regex transforms for flexible URL manipulation
-- **Real-time preview** - See cleaned URL update as you toggle options
-- **Lime/green theme** - Clean, recognizable design with spray bottle icon
+- **Regex transforms** - User can edit and apply any regex transform for flexible URL manipulation
 
-# RFC 2119 Requirements
+
+# RFC 2119 Requirements (for AI assisted development)
 
 ## Objective
 
