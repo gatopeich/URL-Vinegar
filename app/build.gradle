@@ -2,19 +2,12 @@ plugins {
     id 'com.android.application'
 }
 
-def buildTime = new Date()
-
-def getVersionCode = { ->
-    def sdf = new java.text.SimpleDateFormat("yyMMddHH")
-    sdf.setTimeZone(TimeZone.getTimeZone("UTC"))
-    return Integer.parseInt(sdf.format(buildTime))
-}
+// UTC seconds since repo creation (2026-02-04T07:03:56Z), fits int32 until ~2094
+def buildSeconds = (int) ((System.currentTimeMillis() - 1770188636000L) / 1000)
 
 def getVersionName = { ->
     def tag = project.findProperty("RELEASE_TAG") ?: System.getenv("RELEASE_TAG") ?: "v0.0"
-    def sdf = new java.text.SimpleDateFormat("yyMMddHHss")
-    sdf.setTimeZone(TimeZone.getTimeZone("UTC"))
-    def version = tag + "." + sdf.format(buildTime)
+    def version = tag + "." + buildSeconds
     def prNumber = project.findProperty("PR_NUMBER") ?: System.getenv("PR_NUMBER")
     if (prNumber) {
         version += ".PR" + prNumber
@@ -30,7 +23,7 @@ android {
         applicationId "com.gatopeich.urlvinegar"
         minSdk 21
         targetSdk 34
-        versionCode getVersionCode()
+        versionCode buildSeconds
         versionName getVersionName()
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
