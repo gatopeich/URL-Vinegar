@@ -17,8 +17,8 @@ def getVersionCode = { ->
 }
 
 def getVersionName = { ->
-    def dateSuffix = new java.text.SimpleDateFormat("yyMMddHHss").format(new Date())
     def tag = "v0.0"
+    def dateSuffix = new java.text.SimpleDateFormat("yyMMddHHss").format(new Date())
     try {
         def stdout = new ByteArrayOutputStream()
         exec {
@@ -26,6 +26,15 @@ def getVersionName = { ->
             standardOutput = stdout
         }
         tag = stdout.toString().trim()
+        // Use git commit timestamp for reproducible builds (F-Droid compatible)
+        stdout = new ByteArrayOutputStream()
+        exec {
+            commandLine 'git', 'show', '-s', '--format=%ct', 'HEAD'
+            standardOutput = stdout
+        }
+        def sdf = new java.text.SimpleDateFormat("yyMMddHHss")
+        sdf.setTimeZone(TimeZone.getTimeZone("UTC"))
+        dateSuffix = sdf.format(new Date(Long.parseLong(stdout.toString().trim()) * 1000))
     } catch (ignored) {
     }
     def version = tag + "." + dateSuffix
