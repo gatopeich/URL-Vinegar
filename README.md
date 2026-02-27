@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="fastlane/metadata/android/en-US/images/icon.png" width="120" alt="URL Vinegar icon" />
+</p>
+
 # URL Vinegar
 Small customizable URL cleaner.
 
@@ -9,6 +13,14 @@ Small customizable URL cleaner.
 - **YouTube URL shortener** - Converts `youtube.com/watch?v=xxx` to `youtu.be/xxx` (preserves timestamps)
 - **Regex transforms** - User can edit and apply any regex transform for flexible URL manipulation
 
+## Screenshots
+
+<p align="center">
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/1.png" width="200" />
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/2.png" width="200" />
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/3.png" width="200" />
+  <img src="fastlane/metadata/android/en-US/images/phoneScreenshots/4.png" width="200" />
+</p>
 
 # RFC 2119 Requirements (for AI assisted development)
 
