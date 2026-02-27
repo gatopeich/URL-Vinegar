@@ -5,10 +5,13 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
+  release:
+    types: [published]
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
 
 jobs:
   build:
@@ -20,7 +23,11 @@ jobs:
 
     - name: Get release tag
       run: |
-        RELEASE_TAG=$(gh release view --json tagName -q '.tagName' 2>/dev/null || echo "")
+        if [ "${{ github.event_name }}" = "release" ]; then
+          RELEASE_TAG="${{ github.event.release.tag_name }}"
+        else
+          RELEASE_TAG=$(gh release view --json tagName -q '.tagName' 2>/dev/null || echo "")
+        fi
         echo "RELEASE_TAG=$RELEASE_TAG" >> $GITHUB_ENV
       env:
         GH_TOKEN: ${{ github.token }}
@@ -47,6 +54,20 @@ jobs:
       with:
         name: app-release
         path: app/build/outputs/apk/release/app-release.apk
+
+    - name: Attach APK to GitHub Release
+      if: github.event_name == 'release'
+      run: gh release upload "${{ github.event.release.tag_name }}" app/build/outputs/apk/release/app-release.apk --clobber
+      env:
+        GH_TOKEN: ${{ github.token }}
+
+    - name: Comment on PR with APK artifact link
+      if: github.event_name == 'pull_request'
+      run: |
+        gh pr comment "${{ github.event.pull_request.number }}" \
+          --body "📦 APK built successfully! Download it from the [build artifacts](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})."
+      env:
+        GH_TOKEN: ${{ github.token }}
 
     - name: Run Unit Tests
       run: ./gradlew test
