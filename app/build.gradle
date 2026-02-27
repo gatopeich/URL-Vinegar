@@ -6,7 +6,10 @@ plugins {
 def getVersionCode = { ->
     def envCode = project.findProperty("VERSION_CODE") ?: System.getenv("VERSION_CODE")
     if (envCode) {
-        return Integer.parseInt(envCode.toString().trim())
+        try {
+            return Integer.parseInt(envCode.toString().trim())
+        } catch (ignored) {
+        }
     }
     try {
         def stdout = new ByteArrayOutputStream()
