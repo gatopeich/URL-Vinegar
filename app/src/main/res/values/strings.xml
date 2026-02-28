@@ -2,7 +2,7 @@
 <resources>
     <string name="app_name">URL Vinegar</string>
     <string name="config_title">Configuration</string>
-    <string name="app_description">Clean and meaningful URL cleaner and shortener</string>
+    <string name="app_description">Lean URL cleaner and shortener</string>
     
     <!-- Actions -->
     <string name="share">Share</string>
