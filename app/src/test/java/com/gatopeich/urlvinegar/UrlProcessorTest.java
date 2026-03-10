@@ -432,4 +432,155 @@ public class UrlProcessorTest {
         // Should NOT contain utm_source (it was removed by transform)
         assertFalse(result.contains("utm_source"));
     }
+
+    // --- Tests for anyTransformMatches ---
+
+    @Test
+    public void testAnyTransformMatches_matchFound() {
+        List<Transform> transforms = new ArrayList<>();
+        transforms.add(new Transform("Remove UTM", "utm_source", "", true));
+
+        assertTrue(UrlProcessor.anyTransformMatches(
+            "https://example.com?utm_source=test", transforms));
+    }
+
+    @Test
+    public void testAnyTransformMatches_noMatch() {
+        List<Transform> transforms = new ArrayList<>();
+        transforms.add(new Transform("Remove UTM", "utm_source", "", true));
+
+        assertFalse(UrlProcessor.anyTransformMatches("just plain text", transforms));
+    }
+
+    @Test
+    public void testAnyTransformMatches_disabledTransform() {
+        List<Transform> transforms = new ArrayList<>();
+        transforms.add(new Transform("Disabled", "plain", "", false));
+
+        assertFalse(UrlProcessor.anyTransformMatches("just plain text", transforms));
+    }
+
+    @Test
+    public void testAnyTransformMatches_nullInput() {
+        List<Transform> transforms = new ArrayList<>();
+        transforms.add(new Transform("Test", ".*", "", true));
+
+        assertFalse(UrlProcessor.anyTransformMatches(null, transforms));
+    }
+
+    @Test
+    public void testAnyTransformMatches_nullTransforms() {
+        assertFalse(UrlProcessor.anyTransformMatches("some text", null));
+    }
+
+    @Test
+    public void testAnyTransformMatches_multilineText() {
+        List<Transform> transforms = new ArrayList<>();
+        transforms.add(new Transform("Remove Sent by", "\\nSent by.*$", "", true));
+
+        String text = "https://example.com\nSent by MyApp";
+        assertTrue(UrlProcessor.anyTransformMatches(text, transforms));
+    }
+
+    @Test
+    public void testAnyTransformMatches_invalidRegex() {
+        List<Transform> transforms = new ArrayList<>();
+        transforms.add(new Transform("Invalid", "[bad(", "", true));
+
+        assertFalse(UrlProcessor.anyTransformMatches("some text", transforms));
+    }
+
+    // --- Tests for applyTextTransforms ---
+
+    @Test
+    public void testApplyTextTransforms_basic() {
+        List<Transform> transforms = new ArrayList<>();
+        transforms.add(new Transform("Remove foo", "foo", "bar", true));
+
+        String result = UrlProcessor.applyTextTransforms("hello foo world", transforms, null);
+        assertEquals("hello bar world", result);
+    }
+
+    @Test
+    public void testApplyTextTransforms_removeSentByLine() {
+        List<Transform> transforms = new ArrayList<>();
+        transforms.add(new Transform("Remove Sent by", "\\nSent by.*$", "", true));
+
+        String text = "https://example.com/article\nSent by Samsung Mail";
+        String result = UrlProcessor.applyTextTransforms(text, transforms, null);
+        assertEquals("https://example.com/article", result);
+    }
+
+    @Test
+    public void testApplyTextTransforms_podcastConversion() {
+        List<Transform> transforms = new ArrayList<>();
+        transforms.add(new Transform("Convert podcast",
+            "Listen on OldPodcast: (\\S+)",
+            "https://newpodcast.com/$1", true));
+
+        String text = "Listen on OldPodcast: episode123";
+        String result = UrlProcessor.applyTextTransforms(text, transforms, null);
+        assertEquals("https://newpodcast.com/episode123", result);
+    }
+
+    @Test
+    public void testApplyTextTransforms_multilineWithUrl() {
+        List<Transform> transforms = new ArrayList<>();
+        transforms.add(new Transform("Remove footer", "\\n+Sent from.*$", "", true));
+        transforms.add(new Transform("Remove UTM", "[?&](utm_[a-z_]+)=[^&]*", "", true));
+        transforms.add(new Transform("Fix leading ampersand", "^([^?&#]+)&", "$1?", true));
+
+        String text = "https://example.com?utm_source=test&id=123\n\nSent from my iPhone";
+        String result = UrlProcessor.applyTextTransforms(text, transforms, null);
+        assertEquals("https://example.com?id=123", result);
+    }
+
+    @Test
+    public void testApplyTextTransforms_disabledTransform() {
+        List<Transform> transforms = new ArrayList<>();
+        transforms.add(new Transform("Disabled", "foo", "bar", false));
+
+        String result = UrlProcessor.applyTextTransforms("hello foo world", transforms, null);
+        assertEquals("hello foo world", result);
+    }
+
+    @Test
+    public void testApplyTextTransforms_invalidRegex() {
+        List<Transform> transforms = new ArrayList<>();
+        transforms.add(new Transform("Invalid", "[bad(", "", true));
+
+        // Should not crash, should return original text
+        String result = UrlProcessor.applyTextTransforms("some text", transforms, null);
+        assertEquals("some text", result);
+    }
+
+    @Test
+    public void testApplyTextTransforms_nullInput() {
+        List<Transform> transforms = new ArrayList<>();
+        transforms.add(new Transform("Test", ".*", "", true));
+
+        assertNull(UrlProcessor.applyTextTransforms(null, transforms, null));
+    }
+
+    @Test
+    public void testApplyTextTransforms_trimsResult() {
+        List<Transform> transforms = new ArrayList<>();
+        transforms.add(new Transform("Remove suffix", "world$", "", true));
+
+        String result = UrlProcessor.applyTextTransforms("hello world", transforms, null);
+        assertEquals("hello", result);
+    }
+
+    @Test
+    public void testApplyTextTransforms_disabledIndices() {
+        List<Transform> transforms = new ArrayList<>();
+        transforms.add(new Transform("Transform A", "foo", "bar", true));
+        transforms.add(new Transform("Transform B", "hello", "bye", true));
+
+        Set<Integer> disabled = new HashSet<>();
+        disabled.add(0); // Disable Transform A
+
+        String result = UrlProcessor.applyTextTransforms("hello foo", transforms, disabled);
+        assertEquals("bye foo", result);
+    }
 }

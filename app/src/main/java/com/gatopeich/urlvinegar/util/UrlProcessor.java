@@ -103,6 +103,53 @@ public class UrlProcessor {
     }
 
     /**
+     * Check if any enabled transform matches the given text.
+     * Used to decide whether to accept non-URL text for processing.
+     */
+    public static boolean anyTransformMatches(String text, List<Transform> transforms) {
+        if (text == null || transforms == null) {
+            return false;
+        }
+        for (Transform t : transforms) {
+            if (t.isEnabled() && transformMatches(text, t)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Apply transforms to arbitrary text without URL scheme validation.
+     * Used for multiline text processing where the result may not be a URL.
+     */
+    public static String applyTextTransforms(String text, List<Transform> transforms, Set<Integer> disabledIndices) {
+        if (text == null) {
+            return null;
+        }
+        String result = text;
+
+        for (int i = 0; i < transforms.size(); i++) {
+            Transform transform = transforms.get(i);
+
+            if (!transform.isEnabled() || (disabledIndices != null && disabledIndices.contains(i))) {
+                continue;
+            }
+
+            try {
+                Pattern pattern = Pattern.compile(transform.getPattern());
+                Matcher matcher = pattern.matcher(result);
+                if (matcher.find()) {
+                    result = matcher.replaceAll(transform.getReplacement());
+                }
+            } catch (PatternSyntaxException e) {
+                continue;
+            }
+        }
+
+        return result.trim();
+    }
+
+    /**
      * Check if a transform matches the given URL.
      */
     public static boolean transformMatches(String url, Transform transform) {
