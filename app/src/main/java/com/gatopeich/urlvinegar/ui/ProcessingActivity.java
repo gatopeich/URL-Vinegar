@@ -184,7 +184,7 @@ public class ProcessingActivity extends AppCompatActivity {
             String transformed = UrlProcessor.applyTextTransforms(originalText, transforms, null);
             // If result is just a URL, do URL-specific processing (params)
             String url = UrlProcessor.extractUrl(transformed);
-            if (url != null && url.equals(transformed.trim())) {
+            if (url != null && url.equals(transformed)) {
                 queryParams = UrlProcessor.parseParamsWithTracking(
                     url, transforms, null, userRemovedParams);
                 for (UrlProcessor.QueryParam p : queryParams) {
