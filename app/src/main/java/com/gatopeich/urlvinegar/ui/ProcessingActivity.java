@@ -51,6 +51,7 @@ public class ProcessingActivity extends AppCompatActivity {
     private List<UrlProcessor.QueryParam> queryParams;
 
     private String originalUrl;
+    private String originalText; // Full text in text mode (non-URL input), null in URL mode
     private String currentUrl;
     private String urlHost;
     private boolean isProcessTextIntent;
@@ -104,6 +105,7 @@ public class ProcessingActivity extends AppCompatActivity {
 
     /**
      * Requirement 2.2: URL Reception
+     * Accepts URLs directly, or multiline text when any transform matches.
      */
     private String extractUrlFromIntent(Intent intent) {
         if (intent == null) {
@@ -122,15 +124,29 @@ public class ProcessingActivity extends AppCompatActivity {
         // ACTION_SEND - Shared from another app
         if (Intent.ACTION_SEND.equals(action)) {
             String text = intent.getStringExtra(Intent.EXTRA_TEXT);
-            return UrlProcessor.extractUrl(text);
+            if (text == null) return null;
+            String url = UrlProcessor.extractUrl(text);
+            if (url != null) return url;
+            // No URL found - check if any transform matches the text
+            if (UrlProcessor.anyTransformMatches(text, transforms)) {
+                originalText = text;
+                return text;
+            }
+            return null;
         }
 
         // ACTION_PROCESS_TEXT - Text selected in another app (API 23+)
-        // Only process if the selection starts with "http" (case-insensitive)
         if (Intent.ACTION_PROCESS_TEXT.equals(action)) {
             CharSequence text = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT);
-            if (text != null && UrlProcessor.looksLikeUrl(text.toString())) {
-                return UrlProcessor.extractUrl(text.toString());
+            if (text == null) return null;
+            String textStr = text.toString();
+            if (UrlProcessor.looksLikeUrl(textStr)) {
+                return UrlProcessor.extractUrl(textStr);
+            }
+            // Accept multiline text when any transform matches
+            if (UrlProcessor.anyTransformMatches(textStr, transforms)) {
+                originalText = textStr;
+                return textStr;
             }
         }
         
@@ -163,22 +179,43 @@ public class ProcessingActivity extends AppCompatActivity {
     }
 
     private void processUrl() {
-        // Parse params from original URL, track which transform removed each
-        queryParams = UrlProcessor.parseParamsWithTracking(
-            originalUrl, transforms, null, userRemovedParams);
-
-        // Apply user overrides: if user restored a param that was removed by transform, mark as keep
-        for (UrlProcessor.QueryParam p : queryParams) {
-            if (userRestoredParams.contains(p.name) && p.removedBy != null) {
-                p.keep = true;
+        if (originalText != null) {
+            // Text mode: apply transforms to full text
+            String transformed = UrlProcessor.applyTextTransforms(originalText, transforms, null);
+            // If result is just a URL, do URL-specific processing (params)
+            String url = UrlProcessor.extractUrl(transformed);
+            if (url != null && url.equals(transformed)) {
+                queryParams = UrlProcessor.parseParamsWithTracking(
+                    url, transforms, null, userRemovedParams);
+                for (UrlProcessor.QueryParam p : queryParams) {
+                    if (userRestoredParams.contains(p.name) && p.removedBy != null) {
+                        p.keep = true;
+                    }
+                }
+                currentUrl = UrlProcessor.reconstructUrl(url, queryParams);
+            } else {
+                // Result is text (not a URL)
+                currentUrl = transformed;
+                queryParams = new java.util.ArrayList<>();
             }
+        } else {
+            // URL mode: parse params with tracking, apply overrides, reconstruct
+            queryParams = UrlProcessor.parseParamsWithTracking(
+                originalUrl, transforms, null, userRemovedParams);
+
+            // Apply user overrides: if user restored a param that was removed by transform, mark as keep
+            for (UrlProcessor.QueryParam p : queryParams) {
+                if (userRestoredParams.contains(p.name) && p.removedBy != null) {
+                    p.keep = true;
+                }
+            }
+
+            // Reconstruct URL from original base + kept params only.
+            // We use originalUrl (not transform output) as the base to avoid
+            // params getting duplicated when transforms remove the '?' separator.
+            currentUrl = UrlProcessor.reconstructUrl(originalUrl, queryParams);
         }
 
-        // Reconstruct URL from original base + kept params only.
-        // We use originalUrl (not transform output) as the base to avoid
-        // params getting duplicated when transforms remove the '?' separator.
-        currentUrl = UrlProcessor.reconstructUrl(originalUrl, queryParams);
-        
         // Update UI
         urlPreview.setText(currentUrl);
         urlPreview.setTextColor(ContextCompat.getColor(this, R.color.text_dark));
