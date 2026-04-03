@@ -210,10 +210,12 @@ public class ProcessingActivity extends AppCompatActivity {
                 }
             }
 
-            // Reconstruct URL from original base + kept params only.
-            // We use originalUrl (not transform output) as the base to avoid
-            // params getting duplicated when transforms remove the '?' separator.
-            currentUrl = UrlProcessor.reconstructUrl(originalUrl, queryParams);
+            // Determine the base URL for reconstruction. If transforms changed
+            // the URL host (e.g. YouTube shortening), use the transformed URL.
+            // Otherwise use originalUrl to avoid broken query separators from
+            // regex-based param removal transforms.
+            String baseUrl = UrlProcessor.getEffectiveBaseUrl(originalUrl, transforms, null);
+            currentUrl = UrlProcessor.reconstructUrl(baseUrl, queryParams);
         }
 
         // Update UI
