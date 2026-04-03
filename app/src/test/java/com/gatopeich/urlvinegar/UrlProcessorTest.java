@@ -584,43 +584,10 @@ public class UrlProcessorTest {
         assertEquals("bye foo", result);
     }
 
-    // --- Tests for getEffectiveBaseUrl ---
+    // --- Tests for YouTube shortening (transform output used as reconstruction base) ---
 
     @Test
-    public void testGetEffectiveBaseUrl_hostChanged_returnsTransformedUrl() {
-        List<Transform> transforms = new ArrayList<>();
-        transforms.add(new Transform(
-            "Shorten YouTube URL",
-            "https?://(?:www\\.)?youtube\\.com/watch\\?v=([a-zA-Z0-9_-]+)(?:&t=([0-9]+)s?)?.*",
-            "https://youtu.be/$1?t=$2",
-            true
-        ));
-        transforms.add(new Transform(
-            "Clean YouTube timestamp",
-            "(https://youtu\\.be/[a-zA-Z0-9_-]+)\\?t=$",
-            "$1",
-            true
-        ));
-
-        String originalUrl = "https://www.youtube.com/watch?v=K8kdGTmJzos";
-        String baseUrl = UrlProcessor.getEffectiveBaseUrl(originalUrl, transforms, null);
-
-        assertEquals("https://youtu.be/K8kdGTmJzos", baseUrl);
-    }
-
-    @Test
-    public void testGetEffectiveBaseUrl_hostUnchanged_returnsOriginalUrl() {
-        List<Transform> transforms = new ArrayList<>();
-        transforms.add(new Transform("Remove UTM", "[?&](utm_[a-z_]+)=[^&]*", "", true));
-
-        String originalUrl = "https://example.com/page?utm_source=test&id=123";
-        String baseUrl = UrlProcessor.getEffectiveBaseUrl(originalUrl, transforms, null);
-
-        assertEquals(originalUrl, baseUrl);
-    }
-
-    @Test
-    public void testYouTubeShortening_endToEnd() {
+    public void testYouTubeShortening_transformOutputUsedAsBase() {
         List<Transform> transforms = new ArrayList<>();
         transforms.add(new Transform(
             "Shorten YouTube URL",
@@ -637,18 +604,21 @@ public class UrlProcessorTest {
 
         String originalUrl = "https://www.youtube.com/watch?v=K8kdGTmJzos";
 
-        // Step 1: Parse params with tracking
+        // Apply transforms to get the shortened URL
+        UrlProcessor.ProcessResult transformed = UrlProcessor.applyTransforms(originalUrl, transforms, null);
+        assertTrue(transformed.isValid);
+        assertEquals("https://youtu.be/K8kdGTmJzos", transformed.url);
+
+        // Parse params with tracking - v param should be marked as removed
         Set<String> userRemoved = new HashSet<>();
         List<UrlProcessor.QueryParam> params = UrlProcessor.parseParamsWithTracking(
             originalUrl, transforms, null, userRemoved);
+        assertEquals(1, params.size());
+        assertEquals("v", params.get(0).name);
+        assertFalse(params.get(0).keep);
 
-        // Step 2: Get effective base URL (should be transformed URL since host changed)
-        String baseUrl = UrlProcessor.getEffectiveBaseUrl(originalUrl, transforms, null);
-
-        // Step 3: Reconstruct from the effective base URL
-        String result = UrlProcessor.reconstructUrl(baseUrl, params);
-
-        // The result must be the shortened YouTube URL, NOT "https://www.youtube.com/watch"
+        // Reconstruct from the transformed URL (not original) - must produce shortened URL
+        String result = UrlProcessor.reconstructUrl(transformed.url, params);
         assertEquals("https://youtu.be/K8kdGTmJzos", result);
     }
 }

@@ -199,7 +199,11 @@ public class ProcessingActivity extends AppCompatActivity {
                 queryParams = new java.util.ArrayList<>();
             }
         } else {
-            // URL mode: parse params with tracking, apply overrides, reconstruct
+            // URL mode: apply transforms, parse params for tracking, reconstruct
+            UrlProcessor.ProcessResult transformed =
+                UrlProcessor.applyTransforms(originalUrl, transforms, null);
+            String transformedUrl = transformed.isValid ? transformed.url : originalUrl;
+
             queryParams = UrlProcessor.parseParamsWithTracking(
                 originalUrl, transforms, null, userRemovedParams);
 
@@ -210,12 +214,8 @@ public class ProcessingActivity extends AppCompatActivity {
                 }
             }
 
-            // Determine the base URL for reconstruction. If transforms changed
-            // the URL host (e.g. YouTube shortening), use the transformed URL.
-            // Otherwise use originalUrl to avoid broken query separators from
-            // regex-based param removal transforms.
-            String baseUrl = UrlProcessor.getEffectiveBaseUrl(originalUrl, transforms, null);
-            currentUrl = UrlProcessor.reconstructUrl(baseUrl, queryParams);
+            // Reconstruct from the transform output, respecting user param toggles
+            currentUrl = UrlProcessor.reconstructUrl(transformedUrl, queryParams);
         }
 
         // Update UI

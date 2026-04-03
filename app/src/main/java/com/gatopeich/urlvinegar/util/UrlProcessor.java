@@ -247,30 +247,6 @@ public class UrlProcessor {
     }
 
     /**
-     * Get the effective base URL for reconstruction after applying transforms.
-     * If transforms change the URL host (structural transform like YouTube shortening),
-     * returns the fully transformed URL. Otherwise returns the original URL to avoid
-     * broken query separators from regex-based param removal transforms.
-     */
-    public static String getEffectiveBaseUrl(String originalUrl, List<Transform> transforms, Set<Integer> disabledIndices) {
-        ProcessResult result = applyTransforms(originalUrl, transforms, disabledIndices);
-        if (!result.isValid) return originalUrl;
-
-        try {
-            URI origUri = new URI(originalUrl);
-            URI transformedUri = new URI(result.url);
-            String origHost = origUri.getHost();
-            String transHost = transformedUri.getHost();
-            if (origHost != null && !origHost.equals(transHost)) {
-                return result.url;
-            }
-        } catch (URISyntaxException e) {
-            // Fall back to original URL
-        }
-        return originalUrl;
-    }
-
-    /**
      * Parse query parameters from the original URL and determine which are removed by transforms.
      * Steps through transforms one-by-one, checking params before and after each transform
      * to accurately attribute which transform removed each param.
