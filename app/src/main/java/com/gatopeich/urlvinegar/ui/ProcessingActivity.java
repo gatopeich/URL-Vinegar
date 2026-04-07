@@ -199,7 +199,11 @@ public class ProcessingActivity extends AppCompatActivity {
                 queryParams = new java.util.ArrayList<>();
             }
         } else {
-            // URL mode: parse params with tracking, apply overrides, reconstruct
+            // URL mode: apply transforms, parse params for tracking, reconstruct
+            UrlProcessor.ProcessResult transformed =
+                UrlProcessor.applyTransforms(originalUrl, transforms, null);
+            String transformedUrl = transformed.isValid ? transformed.url : originalUrl;
+
             queryParams = UrlProcessor.parseParamsWithTracking(
                 originalUrl, transforms, null, userRemovedParams);
 
@@ -210,10 +214,8 @@ public class ProcessingActivity extends AppCompatActivity {
                 }
             }
 
-            // Reconstruct URL from original base + kept params only.
-            // We use originalUrl (not transform output) as the base to avoid
-            // params getting duplicated when transforms remove the '?' separator.
-            currentUrl = UrlProcessor.reconstructUrl(originalUrl, queryParams);
+            // Reconstruct from the transform output, respecting user param toggles
+            currentUrl = UrlProcessor.reconstructUrl(transformedUrl, queryParams);
         }
 
         // Update UI

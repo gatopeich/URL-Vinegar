@@ -583,4 +583,42 @@ public class UrlProcessorTest {
         String result = UrlProcessor.applyTextTransforms("hello foo", transforms, disabled);
         assertEquals("bye foo", result);
     }
+
+    // --- Tests for YouTube shortening (transform output used as reconstruction base) ---
+
+    @Test
+    public void testYouTubeShortening_transformOutputUsedAsBase() {
+        List<Transform> transforms = new ArrayList<>();
+        transforms.add(new Transform(
+            "Shorten YouTube URL",
+            "https?://(?:www\\.)?youtube\\.com/watch\\?v=([a-zA-Z0-9_-]+)(?:&t=([0-9]+)s?)?.*",
+            "https://youtu.be/$1?t=$2",
+            true
+        ));
+        transforms.add(new Transform(
+            "Clean YouTube timestamp",
+            "(https://youtu\\.be/[a-zA-Z0-9_-]+)\\?t=$",
+            "$1",
+            true
+        ));
+
+        String originalUrl = "https://www.youtube.com/watch?v=K8kdGTmJzos";
+
+        // Apply transforms to get the shortened URL
+        UrlProcessor.ProcessResult transformed = UrlProcessor.applyTransforms(originalUrl, transforms, null);
+        assertTrue(transformed.isValid);
+        assertEquals("https://youtu.be/K8kdGTmJzos", transformed.url);
+
+        // Parse params with tracking - v param should be marked as removed
+        Set<String> userRemoved = new HashSet<>();
+        List<UrlProcessor.QueryParam> params = UrlProcessor.parseParamsWithTracking(
+            originalUrl, transforms, null, userRemoved);
+        assertEquals(1, params.size());
+        assertEquals("v", params.get(0).name);
+        assertFalse(params.get(0).keep);
+
+        // Reconstruct from the transformed URL (not original) - must produce shortened URL
+        String result = UrlProcessor.reconstructUrl(transformed.url, params);
+        assertEquals("https://youtu.be/K8kdGTmJzos", result);
+    }
 }
